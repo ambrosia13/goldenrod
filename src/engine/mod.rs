@@ -5,6 +5,7 @@ use winit::event::{DeviceEvent, Event, WindowEvent};
 
 pub mod input;
 pub mod render_state;
+pub mod render_state_ext;
 pub mod time;
 pub mod window;
 
@@ -37,8 +38,7 @@ pub fn run() {
                             render_state.finish_frame(encoder, surface_texture);
                         }
                         Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                            let size = render_state.size;
-                            render_state.resize(size);
+                            render_state.reconfigure();
                         }
                         Err(wgpu::SurfaceError::Timeout) => {
                             log::warn!("Surface timeout");
