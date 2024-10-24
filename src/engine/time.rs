@@ -21,4 +21,8 @@ impl Time {
         self.last_frame = new_instant;
         self.delta = delta;
     }
+
+    pub fn delta(&self) -> Duration {
+        self.delta
+    }
 }

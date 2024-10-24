@@ -45,6 +45,7 @@ impl RenderState {
                         max_push_constant_size: 128,
                         ..Default::default()
                     },
+                    memory_hints: wgpu::MemoryHints::Performance,
                 },
                 None,
             )

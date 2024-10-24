@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-wgpu = "0.20.0"
-winit = { version = "0.29.0", features = ["rwh_05"] }
+wgpu = "22.1.0"
+winit = { version = "0.30.5", features = ["rwh_05"] }
 
+gpu_bytes_derive = { git = "https://github.com/ambrosia13/gpu_bytes_derive.git" }
 gpu_bytes = { git = "https://github.com/ambrosia13/gpu_bytes.git" }
 glam = { version = "0.27.0", features = ["bytemuck"] }
 rand = "0.8.5"
@@ -18,5 +19,6 @@ pollster = "0.3.0"
 bytemuck = { version = "1.16.0", features = ["derive"] }
 derived-deref = "2.1.0"
 
+regex = "1.10.6"
 crossbeam-queue = "0.3.11"
 rayon = "1.10.0"
