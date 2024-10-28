@@ -1,8 +1,6 @@
-use std::ops::{Deref, Range};
+use std::ops::Range;
 
-use gpu_bytes::{AsStd140, AsStd430};
-
-use super::{binding::WgpuBinding, shader::WgpuShader};
+use super::shader::WgpuShader;
 
 #[derive(Debug, Default)]
 pub struct WgpuPushConstantConfig {

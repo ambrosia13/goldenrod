@@ -92,14 +92,11 @@ pub struct ObjectList {
 
 impl ObjectList {
     pub fn new() -> Self {
-        let mut list = Self {
+        Self {
             spheres: Vec::new(),
             planes: Vec::new(),
             aabbs: Vec::new(),
-        };
-
-        //list.push_sphere(Sphere::new(Vec3::Y * 10.0, 0.5, Material::random()));
-        list
+        }
     }
 
     pub fn push_sphere(&mut self, sphere: Sphere) {

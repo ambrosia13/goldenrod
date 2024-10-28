@@ -1,4 +1,4 @@
-use glam::{UVec2, UVec3};
+use glam::UVec3;
 
 use crate::engine::{
     render_state::RenderState,

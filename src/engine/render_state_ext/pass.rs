@@ -1,7 +1,7 @@
 use glam::UVec3;
 use gpu_bytes::Std430Bytes;
 
-use super::{binding::WgpuBinding, shader::WgpuShader};
+use super::binding::WgpuBinding;
 
 pub struct WgpuComputePass<'a> {
     pub name: &'a str,

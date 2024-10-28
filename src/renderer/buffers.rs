@@ -1,5 +1,5 @@
-use glam::{Mat3, Mat4, Vec3};
-use gpu_bytes::{AsStd140, AsStd430, Std140Bytes, Std430Bytes};
+use glam::{Mat4, Vec3};
+use gpu_bytes::AsStd430;
 use gpu_bytes_derive::{AsStd140, AsStd430};
 
 use crate::{
@@ -12,7 +12,6 @@ use crate::{
     },
     state::{
         camera::Camera,
-        material::Material,
         object::{ObjectList, Sphere},
     },
 };

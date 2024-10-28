@@ -1,10 +1,8 @@
-use glam::{UVec2, UVec3};
-
 use crate::engine::{
     render_state::RenderState,
     render_state_ext::{
         binding::{WgpuBinding, WgpuBindingData, WgpuBindingEntry},
-        pass::{WgpuComputePass, WgpuRenderPass},
+        pass::WgpuRenderPass,
         pipeline::{WgpuPipelineLayoutConfig, WgpuPushConstantConfig, WgpuRenderPipelineConfig},
         shader::WgpuShader,
         texture::WgpuTexture,
