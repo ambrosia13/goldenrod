@@ -34,7 +34,7 @@ impl WgslShaderSource {
         match Self::read_source(&relative_path) {
             Ok(s) => s,
             Err(_) => {
-                log::warn!(
+                log::error!(
                     "Shader at path {:?} failed to load, substituting fallback shader.",
                     relative_path
                 );

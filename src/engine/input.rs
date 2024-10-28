@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Debug};
+use std::collections::HashSet;
 
 use glam::DVec2;
 use winit::{
@@ -30,6 +30,7 @@ impl Input {
     }
 
     pub fn update(&mut self) {
+        self.mouse_delta = DVec2::ZERO;
         self.keys.update();
         self.mouse_buttons.update();
     }

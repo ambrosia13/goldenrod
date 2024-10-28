@@ -724,7 +724,7 @@ dependencies = [
 [[package]]
 name = "gpu_bytes"
 version = "0.1.0"
-source = "git+https://github.com/ambrosia13/gpu_bytes.git#26aef267d83cfc17f0dd2175b95031f8a9262788"
+source = "git+https://github.com/ambrosia13/gpu_bytes.git#3de9876892a26e48e1b7f4f5b41ead613156cb56"
 dependencies = [
  "bytemuck",
  "glam",
@@ -733,7 +733,7 @@ dependencies = [
 [[package]]
 name = "gpu_bytes_derive"
 version = "0.1.0"
-source = "git+https://github.com/ambrosia13/gpu_bytes_derive.git#a7611176ccec462f9bf5f1a0cf56bedb1b1314b0"
+source = "git+https://github.com/ambrosia13/gpu_bytes_derive.git#672719d9f84f805fd2b92547032fc1da44885e3a"
 dependencies = [
  "gpu_bytes",
  "proc-macro2",

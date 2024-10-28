@@ -12,6 +12,8 @@ pub enum BufferData<'a> {
 pub enum WgpuBufferType {
     Storage,
     Uniform,
+    Vertex,
+    Index,
 }
 
 pub struct WgpuBufferConfig<'a> {
@@ -41,6 +43,8 @@ impl WgpuBuffer {
                         | match config.ty {
                             WgpuBufferType::Storage => wgpu::BufferUsages::STORAGE,
                             WgpuBufferType::Uniform => wgpu::BufferUsages::UNIFORM,
+                            WgpuBufferType::Vertex => wgpu::BufferUsages::VERTEX,
+                            WgpuBufferType::Index => wgpu::BufferUsages::INDEX,
                         },
                 }),
                 data.len(),
@@ -53,6 +57,8 @@ impl WgpuBuffer {
                         | match config.ty {
                             WgpuBufferType::Storage => wgpu::BufferUsages::STORAGE,
                             WgpuBufferType::Uniform => wgpu::BufferUsages::UNIFORM,
+                            WgpuBufferType::Vertex => wgpu::BufferUsages::VERTEX,
+                            WgpuBufferType::Index => wgpu::BufferUsages::INDEX,
                         },
                     mapped_at_creation: false,
                 }),
@@ -70,11 +76,15 @@ impl WgpuBuffer {
     pub fn write<T: AsStd140 + AsStd430>(&self, queue: &wgpu::Queue, data: &T) {
         match self.ty {
             WgpuBufferType::Storage => {
-                let std430 = data.as_std430();
+                let mut std430 = data.as_std430();
+                std430.align();
+
                 queue.write_buffer(self, 0, std430.as_slice());
             }
-            WgpuBufferType::Uniform => {
-                let std140 = data.as_std140();
+            WgpuBufferType::Uniform | WgpuBufferType::Vertex | WgpuBufferType::Index => {
+                let mut std140 = data.as_std140();
+                std140.align();
+
                 queue.write_buffer(self, 0, std140.as_slice());
             }
         }

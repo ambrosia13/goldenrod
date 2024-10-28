@@ -2,6 +2,14 @@ use std::sync::Arc;
 
 use winit::window::Window;
 
+pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
+    .union(wgpu::Features::RG11B10UFLOAT_RENDERABLE)
+    .union(wgpu::Features::TEXTURE_BINDING_ARRAY)
+    .union(wgpu::Features::PUSH_CONSTANTS)
+    .union(wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER)
+    .union(wgpu::Features::ADDRESS_MODE_CLAMP_TO_ZERO)
+    .union(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES);
+
 pub struct RenderState {
     pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
@@ -35,12 +43,7 @@ impl RenderState {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: wgpu::Features::FLOAT32_FILTERABLE
-                        | wgpu::Features::RG11B10UFLOAT_RENDERABLE
-                        | wgpu::Features::TEXTURE_BINDING_ARRAY
-                        | wgpu::Features::PUSH_CONSTANTS
-                        | wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER
-                        | wgpu::Features::ADDRESS_MODE_CLAMP_TO_ZERO,
+                    required_features: WGPU_FEATURES,
                     required_limits: wgpu::Limits {
                         max_push_constant_size: 128,
                         ..Default::default()

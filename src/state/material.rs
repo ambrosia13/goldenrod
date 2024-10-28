@@ -1,6 +1,6 @@
 use glam::Vec3;
-use gpu_bytes::AsStd430;
-use gpu_bytes_derive::AsStd430;
+use gpu_bytes::{AsStd140, AsStd430};
+use gpu_bytes_derive::{AsStd140, AsStd430};
 use rand::Rng;
 
 #[repr(u32)]
@@ -12,13 +12,19 @@ pub enum MaterialType {
     Dielectric = 2,
 }
 
+impl AsStd140 for MaterialType {
+    fn as_std140(&self) -> gpu_bytes::Std140Bytes {
+        (*self as u32).as_std140()
+    }
+}
+
 impl AsStd430 for MaterialType {
     fn as_std430(&self) -> gpu_bytes::Std430Bytes {
         (*self as u32).as_std430()
     }
 }
 
-#[derive(AsStd430, Debug, Clone, Copy)]
+#[derive(AsStd140, AsStd430, Debug, Clone, Copy)]
 pub struct Material {
     pub albedo: Vec3,
     pub ty: MaterialType,

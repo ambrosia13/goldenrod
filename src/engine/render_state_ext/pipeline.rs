@@ -6,27 +6,37 @@ use super::{binding::WgpuBinding, shader::WgpuShader};
 
 #[derive(Debug, Default)]
 pub struct WgpuPushConstantConfig {
-    vertex: Option<Range<u32>>,
-    fragment: Option<Range<u32>>,
-    compute: Option<Range<u32>>,
+    pub vertex: Option<Range<u32>>,
+    pub fragment: Option<Range<u32>>,
+    pub compute: Option<Range<u32>>,
 }
 
 impl WgpuPushConstantConfig {
-    pub fn as_ranges(&self) -> [wgpu::PushConstantRange; 3] {
-        [
-            wgpu::PushConstantRange {
+    pub fn as_ranges(&self) -> Vec<wgpu::PushConstantRange> {
+        let mut ranges = Vec::new();
+
+        if let Some(vertex) = &self.vertex {
+            ranges.push(wgpu::PushConstantRange {
                 stages: wgpu::ShaderStages::VERTEX,
-                range: self.vertex.clone().unwrap_or(0..0),
-            },
-            wgpu::PushConstantRange {
+                range: vertex.clone(),
+            });
+        }
+
+        if let Some(fragment) = &self.fragment {
+            ranges.push(wgpu::PushConstantRange {
                 stages: wgpu::ShaderStages::FRAGMENT,
-                range: self.fragment.clone().unwrap_or(0..0),
-            },
-            wgpu::PushConstantRange {
+                range: fragment.clone(),
+            });
+        }
+
+        if let Some(compute) = &self.compute {
+            ranges.push(wgpu::PushConstantRange {
                 stages: wgpu::ShaderStages::COMPUTE,
-                range: self.compute.clone().unwrap_or(0..0),
-            },
-        ]
+                range: compute.clone(),
+            });
+        }
+
+        ranges
     }
 }
 

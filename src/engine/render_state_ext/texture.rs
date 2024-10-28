@@ -157,7 +157,7 @@ impl<'a> WgpuTexture<'a> {
 
     pub fn view(&self, mip_range: Range<u32>, layer_range: Range<u32>) -> wgpu::TextureView {
         self.texture.create_view(&wgpu::TextureViewDescriptor {
-            label: Some(&format!("{} view", self.name)),
+            label: Some(&format!("{} View", self.name)),
             format: Some(self.texture_descriptor.format),
             dimension: Some(self.view_dimension()),
             aspect: wgpu::TextureAspect::All,

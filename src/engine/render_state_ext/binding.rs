@@ -1,5 +1,7 @@
 use std::num::NonZero;
 
+use crate::engine::render_state;
+
 use super::{buffer::WgpuBuffer, texture::WgpuTexture};
 
 pub enum WgpuBindingData<'resource, 'r>
@@ -38,7 +40,7 @@ where
                 sample_type: texture
                     .texture_descriptor
                     .format
-                    .sample_type(None, None)
+                    .sample_type(None, Some(render_state::WGPU_FEATURES))
                     .unwrap(),
                 view_dimension: texture.view_dimension(),
                 multisampled: false,

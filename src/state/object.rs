@@ -1,12 +1,12 @@
 use glam::Vec3;
-use gpu_bytes_derive::AsStd430;
+use gpu_bytes_derive::{AsStd140, AsStd430};
 
 use super::material::Material;
 
 const OBJECT_COUNT: usize = 32;
 const PAD_THICKNESS: f32 = 0.00025;
 
-#[derive(AsStd430, Default, Debug, Clone, Copy)]
+#[derive(AsStd140, AsStd430, Default, Debug, Clone, Copy)]
 pub struct Sphere {
     center: Vec3,
     radius: f32,
@@ -38,7 +38,7 @@ impl Sphere {
     }
 }
 
-#[derive(AsStd430, Default, Debug, Clone, Copy)]
+#[derive(AsStd140, AsStd430, Default, Debug, Clone, Copy)]
 pub struct Plane {
     normal: Vec3,
     point: Vec3,
@@ -55,7 +55,7 @@ impl Plane {
     }
 }
 
-#[derive(AsStd430, Default, Debug, Clone, Copy)]
+#[derive(AsStd140, AsStd430, Default, Debug, Clone, Copy)]
 pub struct Aabb {
     min: Vec3,
     max: Vec3,
@@ -92,22 +92,25 @@ pub struct ObjectList {
 
 impl ObjectList {
     pub fn new() -> Self {
-        Self {
-            spheres: Vec::with_capacity(OBJECT_COUNT),
-            planes: Vec::with_capacity(OBJECT_COUNT),
-            aabbs: Vec::with_capacity(OBJECT_COUNT),
-        }
+        let mut list = Self {
+            spheres: Vec::new(),
+            planes: Vec::new(),
+            aabbs: Vec::new(),
+        };
+
+        //list.push_sphere(Sphere::new(Vec3::Y * 10.0, 0.5, Material::random()));
+        list
     }
 
     pub fn push_sphere(&mut self, sphere: Sphere) {
-        self.spheres.insert(0, sphere);
+        self.spheres.push(sphere);
     }
 
     pub fn push_plane(&mut self, plane: Plane) {
-        self.planes.insert(0, plane);
+        self.planes.push(plane);
     }
 
     pub fn push_aabb(&mut self, aabb: Aabb) {
-        self.aabbs.insert(0, aabb);
+        self.aabbs.push(aabb);
     }
 }

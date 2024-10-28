@@ -108,7 +108,7 @@ impl Camera {
         self.pitch += pitch_delta;
         self.pitch = self.pitch.clamp(-89.5, 89.5);
 
-        self.rotation = self.yaw_quat() * self.pitch_quat();
+        self.rotation = (self.yaw_quat() * self.pitch_quat()).normalize();
     }
 
     fn update_position(&mut self, input: &Input, movement_speed: f32, delta_time: f32) {
@@ -155,8 +155,8 @@ impl Camera {
         let matrix = Mat3::from_cols(right, up, forward);
         let rotation = Quat::from_mat3(&matrix);
 
-        let yaw = ((forward.z as f64).atan2(forward.x as f64)).to_degrees();
-        let pitch = ((forward.y as f64).asin()).to_degrees();
+        let yaw = ((forward.z).atan2(forward.x) as f64).to_degrees();
+        let pitch = ((forward.y).asin() as f64).to_degrees();
 
         (rotation, yaw, pitch)
     }
