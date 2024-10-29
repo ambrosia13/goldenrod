@@ -98,11 +98,11 @@ impl Camera {
         Mat4::perspective_rh(self.fov.to_radians(), self.aspect, self.near, self.far)
     }
 
-    fn update_rotation(&mut self, input: &Input, sensitivity: f64, delta_time: f64) {
+    pub fn update_rotation(&mut self, input: &Input, sensitivity: f64) {
         let mouse_delta = input.mouse_delta();
 
-        let yaw_delta = -mouse_delta.x * sensitivity * delta_time;
-        let pitch_delta = mouse_delta.y * sensitivity * delta_time;
+        let yaw_delta = -mouse_delta.x * sensitivity;
+        let pitch_delta = mouse_delta.y * sensitivity;
 
         self.yaw += yaw_delta;
         self.pitch += pitch_delta;
@@ -111,7 +111,9 @@ impl Camera {
         self.rotation = (self.yaw_quat() * self.pitch_quat()).normalize();
     }
 
-    fn update_position(&mut self, input: &Input, movement_speed: f32, delta_time: f32) {
+    pub fn update_position(&mut self, input: &Input, time: &Time) {
+        let movement_speed = 50.0;
+
         let mut velocity = Vec3::ZERO;
         let forward = self.forward_xz();
         let right = self.right_xz();
@@ -137,14 +139,7 @@ impl Camera {
         }
 
         velocity = velocity.normalize_or_zero();
-        self.position += velocity * movement_speed * delta_time;
-    }
-
-    pub fn update(&mut self, input: &Input, time: &Time) {
-        let delta_time = time.delta();
-
-        self.update_rotation(input, 100.0, delta_time.as_secs_f64());
-        self.update_position(input, 50.0, delta_time.as_secs_f32());
+        self.position += velocity * movement_speed * time.delta().as_secs_f32();
     }
 
     fn get_rotation_from_view_vector(pos: Vec3, target: Vec3) -> (Quat, f64, f64) {

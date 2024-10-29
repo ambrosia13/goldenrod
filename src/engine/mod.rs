@@ -56,8 +56,8 @@ impl<'a> EngineState<'a> {
             Vec3::NEG_Z,
             45.0,
             render_state.size,
-            0.0001,
-            1000.0,
+            0.005,
+            500.0,
         );
 
         let object_list = ObjectList::new();
@@ -221,7 +221,7 @@ impl<'a> ApplicationHandler for App<'a> {
                     }
                 }
 
-                camera.update(input, time);
+                camera.update_position(input, time);
 
                 screen_buffer.update(render_state, camera);
 
@@ -247,13 +247,14 @@ impl<'a> ApplicationHandler for App<'a> {
             return;
         };
 
-        let EngineState { input, .. } = engine_state;
+        let EngineState { input, camera, .. } = engine_state;
 
         if let DeviceEvent::MouseMotion {
             delta: (delta_x, delta_y),
         } = event
         {
             input.set_mouse_delta(delta_x, delta_y);
+            camera.update_rotation(input, 0.1);
         }
     }
 
