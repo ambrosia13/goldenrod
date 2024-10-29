@@ -8,7 +8,6 @@ use winit::{
     application::ApplicationHandler,
     event::{DeviceEvent, WindowEvent},
     event_loop::EventLoop,
-    keyboard::KeyCode,
     window::{Window, WindowAttributes},
 };
 
@@ -21,8 +20,7 @@ use crate::{
     },
     state::{
         camera::Camera,
-        material::Material,
-        object::{ObjectList, Sphere},
+        object::ObjectList,
     },
 };
 
@@ -40,6 +38,7 @@ pub struct EngineState<'a> {
 
     pub screen_buffer: ScreenBuffer,
 
+    pub object_buffer_version: u32,
     pub sphere_list_buffer: SphereListBuffer,
     pub plane_list_buffer: PlaneListBuffer,
     pub aabb_list_buffer: AabbListBuffer,
@@ -68,14 +67,10 @@ impl<'a> EngineState<'a> {
 
         let screen_buffer = ScreenBuffer::new(render_state);
 
-        let mut sphere_list_buffer = SphereListBuffer::new("Sphere List Buffer", render_state);
-        sphere_list_buffer.update(render_state, &object_list);
-
-        let mut plane_list_buffer = PlaneListBuffer::new("Plane List Buffer", render_state);
-        plane_list_buffer.update(render_state, &object_list);
-
-        let mut aabb_list_buffer = AabbListBuffer::new("AABB List Buffer", render_state);
-        aabb_list_buffer.update(render_state, &object_list);
+        let object_buffer_version = 0;
+        let sphere_list_buffer = SphereListBuffer::new("Sphere List Buffer", render_state);
+        let plane_list_buffer = PlaneListBuffer::new("Plane List Buffer", render_state);
+        let aabb_list_buffer = AabbListBuffer::new("AABB List Buffer", render_state);
 
         let screen_quad = ScreenQuad::new(render_state);
         let raytrace_render_context = RaytraceRenderContext::new(
@@ -99,12 +94,40 @@ impl<'a> EngineState<'a> {
             camera,
             object_list,
             screen_buffer,
+            object_buffer_version,
             sphere_list_buffer,
             plane_list_buffer,
             aabb_list_buffer,
             screen_quad,
             raytrace_render_context,
             final_render_context,
+        }
+    }
+
+    pub fn update_object_buffers(&mut self, render_state: &RenderState) {
+        // If the object buffers don't reflect the current object list, update those
+        if self.object_buffer_version != self.object_list.version {
+            log::info!("Updating object buffers");
+
+            #[rustfmt::skip]
+            let update_object_bindings = 
+                self.sphere_list_buffer.update(render_state, &self.object_list) | 
+                self.plane_list_buffer.update(render_state, &self.object_list) | 
+                self.aabb_list_buffer.update(render_state, &self.object_list);
+
+            // if updating the object buffers caused a reallocation, update the bindings so the raytracer
+            // has access to the new buffers
+            if update_object_bindings {
+                self.raytrace_render_context.on_object_update(
+                    render_state,
+                    &self.sphere_list_buffer,
+                    &self.plane_list_buffer,
+                    &self.aabb_list_buffer,
+                );
+            }
+
+            // update the version to match
+            self.object_buffer_version = self.object_list.version;
         }
     }
 }
@@ -175,35 +198,21 @@ impl<'a> ApplicationHandler for App<'a> {
             return;
         }
 
-        let EngineState {
-            input,
-            time,
-            camera,
-            object_list,
-            screen_buffer,
-            sphere_list_buffer,
-            plane_list_buffer,
-            aabb_list_buffer,
-            screen_quad,
-            raytrace_render_context,
-            final_render_context,
-        } = engine_state;
-
         match event {
             WindowEvent::KeyboardInput { event, .. } => {
-                input::handle_keyboard_input_event(input, event);
+                input::handle_keyboard_input_event(&mut engine_state.input, event);
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                input::handle_mouse_input_event(input, state, button);
+                input::handle_mouse_input_event(&mut engine_state.input, state, button);
             }
 
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => {
-                camera.reconfigure_aspect(size);
+                engine_state.camera.reconfigure_aspect(size);
                 render_state.resize(size);
 
-                raytrace_render_context.resize(render_state);
-                final_render_context.resize(render_state, &raytrace_render_context.color_texture);
+                engine_state.raytrace_render_context.resize(render_state);
+                engine_state.final_render_context.resize(render_state, &engine_state.raytrace_render_context.color_texture);
             }
             WindowEvent::RedrawRequested => {
                 // We want another frame after this one
@@ -226,38 +235,19 @@ impl<'a> ApplicationHandler for App<'a> {
                     }
                 };
 
-                if input.keys.just_pressed(KeyCode::KeyT) {
-                    let offset = object_list.spheres.len() as f32;
-                    object_list.push_sphere(Sphere::new(
-                        Vec3::ZERO + Vec3::X * offset,
-                        0.5,
-                        Material::random(),
-                    ));
+                engine_state.update_object_buffers(render_state);
 
-                    log::info!("Updating sphere list buffer");
+                engine_state.camera.update_position(&engine_state.input, &engine_state.time);
 
-                    // When the buffer is reallocated, we need to update its binding in every pass that uses it
-                    if sphere_list_buffer.update(render_state, object_list) {
-                        raytrace_render_context.on_object_update(
-                            render_state,
-                            sphere_list_buffer,
-                            plane_list_buffer,
-                            aabb_list_buffer,
-                        );
-                    }
-                }
+                engine_state.screen_buffer.update(render_state, &engine_state.camera);
 
-                camera.update_position(input, time);
-
-                screen_buffer.update(render_state, camera);
-
-                raytrace_render_context.draw(&mut encoder);
-                final_render_context.draw(&mut encoder, &surface_texture, screen_quad);
+                engine_state.raytrace_render_context.draw(&mut encoder);
+                engine_state.final_render_context.draw(&mut encoder, &surface_texture, &engine_state.screen_quad);
 
                 render_state.finish_frame(encoder, surface_texture);
 
-                input.update();
-                time.update();
+                engine_state.input.update();
+                engine_state.time.update();
             }
             _ => {}
         }

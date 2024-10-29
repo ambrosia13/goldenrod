@@ -89,6 +89,8 @@ pub struct ObjectList {
     pub spheres: Vec<Sphere>,
     pub planes: Vec<Plane>,
     pub aabbs: Vec<Aabb>,
+
+    pub version: u32,
 }
 
 impl ObjectList {
@@ -97,10 +99,13 @@ impl ObjectList {
             spheres: Vec::new(),
             planes: Vec::new(),
             aabbs: Vec::new(),
+            version: 0,
         }
     }
 
     pub fn random_scene(&mut self) {
+        self.version += 1;
+
         self.spheres.clear();
         self.planes.clear();
         self.aabbs.clear();
@@ -174,14 +179,17 @@ impl ObjectList {
     }
 
     pub fn push_sphere(&mut self, sphere: Sphere) {
+        self.version += 1;
         self.spheres.push(sphere);
     }
 
     pub fn push_plane(&mut self, plane: Plane) {
+        self.version += 1;
         self.planes.push(plane);
     }
 
     pub fn push_aabb(&mut self, aabb: Aabb) {
+        self.version += 1;
         self.aabbs.push(aabb);
     }
 }

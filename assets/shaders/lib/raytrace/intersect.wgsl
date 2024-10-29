@@ -12,6 +12,10 @@ struct Hit {
     material: Material,
 }
 
+const MATERIAL_LAMBERTIAN: u32 = 0u;
+const MATERIAL_METAL: u32 = 1u;
+const MATERIAL_DIELECTRIC: u32 = 2u;
+
 struct Material {
     albedo: vec3<f32>,
     ty: u32,

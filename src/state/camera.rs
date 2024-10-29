@@ -112,7 +112,7 @@ impl Camera {
     }
 
     pub fn update_position(&mut self, input: &Input, time: &Time) {
-        let movement_speed = 50.0;
+        let movement_speed = 10.0;
 
         let mut velocity = Vec3::ZERO;
         let forward = self.forward_xz();
