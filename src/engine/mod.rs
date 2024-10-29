@@ -14,7 +14,7 @@ use winit::{
 
 use crate::{
     renderer::{
-        buffers::{ScreenBuffer, SphereListBuffer},
+        buffers::{AabbListBuffer, PlaneListBuffer, ScreenBuffer, SphereListBuffer},
         final_pass::FinalRenderContext,
         raytrace::RaytraceRenderContext,
         screen_quad::ScreenQuad,
@@ -39,7 +39,10 @@ pub struct EngineState<'a> {
     pub object_list: ObjectList,
 
     pub screen_buffer: ScreenBuffer,
+
     pub sphere_list_buffer: SphereListBuffer,
+    pub plane_list_buffer: PlaneListBuffer,
+    pub aabb_list_buffer: AabbListBuffer,
 
     pub screen_quad: ScreenQuad,
     pub raytrace_render_context: RaytraceRenderContext<'a>,
@@ -60,14 +63,28 @@ impl<'a> EngineState<'a> {
             500.0,
         );
 
-        let object_list = ObjectList::new();
+        let mut object_list = ObjectList::new();
+        object_list.random_scene();
 
         let screen_buffer = ScreenBuffer::new(render_state);
-        let sphere_list_buffer = SphereListBuffer::new(render_state);
+
+        let mut sphere_list_buffer = SphereListBuffer::new("Sphere List Buffer", render_state);
+        sphere_list_buffer.update(render_state, &object_list);
+
+        let mut plane_list_buffer = PlaneListBuffer::new("Plane List Buffer", render_state);
+        plane_list_buffer.update(render_state, &object_list);
+
+        let mut aabb_list_buffer = AabbListBuffer::new("AABB List Buffer", render_state);
+        aabb_list_buffer.update(render_state, &object_list);
 
         let screen_quad = ScreenQuad::new(render_state);
-        let raytrace_render_context =
-            RaytraceRenderContext::new(render_state, &screen_buffer, &sphere_list_buffer);
+        let raytrace_render_context = RaytraceRenderContext::new(
+            render_state,
+            &screen_buffer,
+            &sphere_list_buffer,
+            &plane_list_buffer,
+            &aabb_list_buffer,
+        );
         let final_render_context = FinalRenderContext::new(
             render_state,
             &render_state.surface.get_current_texture().unwrap(),
@@ -83,6 +100,8 @@ impl<'a> EngineState<'a> {
             object_list,
             screen_buffer,
             sphere_list_buffer,
+            plane_list_buffer,
+            aabb_list_buffer,
             screen_quad,
             raytrace_render_context,
             final_render_context,
@@ -163,6 +182,8 @@ impl<'a> ApplicationHandler for App<'a> {
             object_list,
             screen_buffer,
             sphere_list_buffer,
+            plane_list_buffer,
+            aabb_list_buffer,
             screen_quad,
             raytrace_render_context,
             final_render_context,
@@ -217,7 +238,12 @@ impl<'a> ApplicationHandler for App<'a> {
 
                     // When the buffer is reallocated, we need to update its binding in every pass that uses it
                     if sphere_list_buffer.update(render_state, object_list) {
-                        raytrace_render_context.on_object_update(render_state, sphere_list_buffer);
+                        raytrace_render_context.on_object_update(
+                            render_state,
+                            sphere_list_buffer,
+                            plane_list_buffer,
+                            aabb_list_buffer,
+                        );
                     }
                 }
 

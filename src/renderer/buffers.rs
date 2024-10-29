@@ -1,5 +1,5 @@
 use glam::{Mat4, Vec3};
-use gpu_bytes::AsStd430;
+use gpu_bytes::{AsStd140, AsStd430};
 use gpu_bytes_derive::{AsStd140, AsStd430};
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
     },
     state::{
         camera::Camera,
-        object::{ObjectList, Sphere},
+        object::{Aabb, ObjectList, Plane, Sphere},
     },
 };
 
@@ -126,53 +126,32 @@ impl ScreenBuffer {
     }
 }
 
-#[derive(AsStd140, AsStd430)]
-pub struct SphereListUniform {
-    pub num_spheres: u32,
-    pub list: Vec<Sphere>,
+trait UpdateFromObjectList {
+    fn update(&mut self, object_list: &ObjectList);
 }
 
-impl SphereListUniform {
-    pub fn update(&mut self, object_list: &ObjectList) {
-        self.num_spheres = object_list.spheres.len() as u32;
-
-        self.list = Vec::with_capacity(self.list.capacity());
-        self.list.extend_from_slice(&object_list.spheres);
-        // self.list = object_list.spheres.clone();
-        // self.list
-        //     .reserve(object_list.spheres.capacity() - self.list.capacity());
-    }
-}
-
-impl Default for SphereListUniform {
-    fn default() -> Self {
-        Self {
-            num_spheres: 0,
-            list: Vec::with_capacity(MIN_STORAGE_ARRAY_CAPACITY),
-        }
-    }
-}
-
-pub struct SphereListBuffer {
-    pub data: SphereListUniform,
+pub struct ObjectListBuffer<T: AsStd140 + AsStd430 + UpdateFromObjectList + Default> {
+    pub name: String,
+    pub data: T,
     pub buffer: WgpuBuffer,
 }
 
-impl SphereListBuffer {
-    pub fn new(render_state: &RenderState) -> Self {
-        let data = SphereListUniform::default();
+impl<T: AsStd140 + AsStd430 + UpdateFromObjectList + Default> ObjectListBuffer<T> {
+    pub fn new(name: &str, render_state: &RenderState) -> Self {
+        let data = T::default();
         let buffer_size = data.as_std430().align().as_slice().len();
 
         Self {
             data,
             buffer: render_state.create_buffer(
-                "Sphere List Buffer",
+                name,
                 WgpuBufferConfig {
                     data: BufferData::Uninit(buffer_size),
                     ty: WgpuBufferType::Storage,
                     usage: wgpu::BufferUsages::COPY_DST,
                 },
             ),
+            name: name.to_owned(),
         }
     }
 
@@ -187,11 +166,11 @@ impl SphereListBuffer {
 
         // reallocate if the buffer can't hold the data
         if self.buffer.len() < data_size {
-            log::info!("Sphere list buffer reallocated");
+            log::info!("{} reallocated", &self.name);
 
             // reallocate the buffer to fit the data
             self.buffer = render_state.create_buffer(
-                "Sphere List Buffer",
+                &self.name,
                 WgpuBufferConfig {
                     data: BufferData::Init(data.as_slice()),
                     ty: WgpuBufferType::Storage,
@@ -208,3 +187,191 @@ impl SphereListBuffer {
         }
     }
 }
+
+#[derive(AsStd140, AsStd430)]
+pub struct SphereListUniform {
+    pub num_spheres: u32,
+    pub list: Vec<Sphere>,
+}
+
+impl UpdateFromObjectList for SphereListUniform {
+    fn update(&mut self, object_list: &ObjectList) {
+        self.num_spheres = object_list.spheres.len() as u32;
+
+        self.list = Vec::with_capacity(self.list.capacity());
+        self.list.extend_from_slice(&object_list.spheres);
+    }
+}
+
+impl Default for SphereListUniform {
+    fn default() -> Self {
+        Self {
+            num_spheres: 0,
+            list: Vec::with_capacity(MIN_STORAGE_ARRAY_CAPACITY),
+        }
+    }
+}
+
+#[derive(AsStd140, AsStd430)]
+pub struct PlaneListUniform {
+    pub num_planes: u32,
+    pub list: Vec<Plane>,
+}
+
+impl UpdateFromObjectList for PlaneListUniform {
+    fn update(&mut self, object_list: &ObjectList) {
+        self.num_planes = object_list.planes.len() as u32;
+
+        self.list = Vec::with_capacity(self.list.capacity());
+        self.list.extend_from_slice(&object_list.planes);
+    }
+}
+
+impl Default for PlaneListUniform {
+    fn default() -> Self {
+        Self {
+            num_planes: 0,
+            list: Vec::with_capacity(MIN_STORAGE_ARRAY_CAPACITY),
+        }
+    }
+}
+
+#[derive(AsStd140, AsStd430)]
+pub struct AabbListUniform {
+    pub num_aabbs: u32,
+    pub list: Vec<Aabb>,
+}
+
+impl UpdateFromObjectList for AabbListUniform {
+    fn update(&mut self, object_list: &ObjectList) {
+        self.num_aabbs = object_list.aabbs.len() as u32;
+
+        self.list = Vec::with_capacity(self.list.capacity());
+        self.list.extend_from_slice(&object_list.aabbs);
+    }
+}
+
+impl Default for AabbListUniform {
+    fn default() -> Self {
+        Self {
+            num_aabbs: 0,
+            list: Vec::with_capacity(MIN_STORAGE_ARRAY_CAPACITY),
+        }
+    }
+}
+
+pub type SphereListBuffer = ObjectListBuffer<SphereListUniform>;
+pub type PlaneListBuffer = ObjectListBuffer<PlaneListUniform>;
+pub type AabbListBuffer = ObjectListBuffer<AabbListUniform>;
+
+// pub struct SphereListBuffer {
+//     pub data: SphereListUniform,
+//     pub buffer: WgpuBuffer,
+// }
+
+// impl SphereListBuffer {
+//     pub fn new(render_state: &RenderState) -> Self {
+//         let data = SphereListUniform::default();
+//         let buffer_size = data.as_std430().align().as_slice().len();
+
+//         Self {
+//             data,
+//             buffer: render_state.create_buffer(
+//                 "Sphere List Buffer",
+//                 WgpuBufferConfig {
+//                     data: BufferData::Uninit(buffer_size),
+//                     ty: WgpuBufferType::Storage,
+//                     usage: wgpu::BufferUsages::COPY_DST,
+//                 },
+//             ),
+//         }
+//     }
+
+//     /// returns true if reallocated
+//     pub fn update(&mut self, render_state: &RenderState, object_list: &ObjectList) -> bool {
+//         self.data.update(object_list);
+
+//         let mut data = self.data.as_std430();
+//         data.align();
+
+//         let data_size = data.as_slice().len();
+
+//         // reallocate if the buffer can't hold the data
+//         if self.buffer.len() < data_size {
+//             log::info!("Sphere list buffer reallocated");
+
+//             // reallocate the buffer to fit the data
+//             self.buffer = render_state.create_buffer(
+//                 "Sphere List Buffer",
+//                 WgpuBufferConfig {
+//                     data: BufferData::Init(data.as_slice()),
+//                     ty: WgpuBufferType::Storage,
+//                     usage: wgpu::BufferUsages::COPY_DST,
+//                 },
+//             );
+
+//             true
+//         } else {
+//             // write to the existing buffer
+//             self.buffer.write(&render_state.queue, &self.data);
+
+//             false
+//         }
+//     }
+// }
+
+// pub struct PlaneListBuffer {
+//     pub data: PlaneListUniform,
+//     pub buffer: WgpuBuffer,
+// }
+
+// impl PlaneListBuffer {
+//     pub fn new(render_state: &RenderState) -> Self {
+//         let data = PlaneListUniform::default();
+//         let buffer_size = data.as_std430().align().as_slice().len();
+
+//         Self {
+//             data,
+//             buffer: render_state.create_buffer(
+//                 "Sphere List Buffer",
+//                 WgpuBufferConfig {
+//                     data: BufferData::Uninit(buffer_size),
+//                     ty: WgpuBufferType::Storage,
+//                     usage: wgpu::BufferUsages::COPY_DST,
+//                 },
+//             ),
+//         }
+//     }
+
+//     /// returns true if reallocated
+//     pub fn update(&mut self, render_state: &RenderState, object_list: &ObjectList) -> bool {
+//         self.data.update(object_list);
+
+//         let mut data = self.data.as_std430();
+//         data.align();
+
+//         let data_size = data.as_slice().len();
+
+//         // reallocate if the buffer can't hold the data
+//         if self.buffer.len() < data_size {
+//             log::info!("Sphere list buffer reallocated");
+
+//             // reallocate the buffer to fit the data
+//             self.buffer = render_state.create_buffer(
+//                 "Sphere List Buffer",
+//                 WgpuBufferConfig {
+//                     data: BufferData::Init(data.as_slice()),
+//                     ty: WgpuBufferType::Storage,
+//                     usage: wgpu::BufferUsages::COPY_DST,
+//                 },
+//             );
+
+//             true
+//         } else {
+//             // write to the existing buffer
+//             self.buffer.write(&render_state.queue, &self.data);
+
+//             false
+//         }
+//     }
+// }

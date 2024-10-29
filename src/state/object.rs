@@ -1,7 +1,8 @@
 use glam::Vec3;
 use gpu_bytes_derive::{AsStd140, AsStd430};
+use rand::Rng;
 
-use super::material::Material;
+use super::material::{Material, MaterialType};
 
 const OBJECT_COUNT: usize = 32;
 const PAD_THICKNESS: f32 = 0.00025;
@@ -96,6 +97,79 @@ impl ObjectList {
             spheres: Vec::new(),
             planes: Vec::new(),
             aabbs: Vec::new(),
+        }
+    }
+
+    pub fn random_scene(&mut self) {
+        self.spheres.clear();
+        self.planes.clear();
+        self.aabbs.clear();
+
+        self.planes.push(Plane::new(
+            Vec3::Y,
+            Vec3::ZERO,
+            Material {
+                ty: MaterialType::Lambertian,
+                albedo: Vec3::ONE,
+                emission: Vec3::ZERO,
+                roughness: 0.0,
+                ior: 0.0,
+            },
+        ));
+
+        let region_size = 5;
+        let regions_radius = 2;
+
+        for x in -regions_radius..=regions_radius {
+            for z in -regions_radius..=regions_radius {
+                let x = (x * region_size) as f32;
+                let z = (z * region_size) as f32;
+
+                let max_offset = region_size as f32 / 2.0 * 0.8;
+                let min_radius = region_size as f32 / 2.0 * 0.2;
+
+                let offset = rand::thread_rng().gen_range(-max_offset..=max_offset);
+
+                let rand_radius = || {
+                    rand::thread_rng()
+                        .gen_range(min_radius..=(max_offset - offset.abs() + min_radius))
+                        .sqrt()
+                };
+
+                match rand::thread_rng().gen_range(0..2) {
+                    0 => {
+                        let radius = rand_radius();
+
+                        self.push_sphere(
+                            Sphere::new(
+                                Vec3::new(x + offset, radius, z + offset),
+                                radius,
+                                Material::random(),
+                            )
+                            .pad(),
+                        )
+                    }
+                    1 => {
+                        let radius_x = rand_radius();
+                        let radius_y = rand_radius();
+                        let radius_z = rand_radius();
+
+                        self.push_aabb(
+                            Aabb::new(
+                                Vec3::new(x + offset - radius_x, 0.0, z + offset - radius_z),
+                                Vec3::new(
+                                    x + offset + radius_x,
+                                    2.0 * radius_y,
+                                    z + offset + radius_z,
+                                ),
+                                Material::random(),
+                            )
+                            .pad(),
+                        )
+                    }
+                    _ => unreachable!(),
+                }
+            }
         }
     }
 

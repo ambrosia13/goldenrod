@@ -12,7 +12,7 @@ use crate::engine::{
     },
 };
 
-use super::buffers::{ScreenBuffer, SphereListBuffer};
+use super::buffers::{AabbListBuffer, PlaneListBuffer, ScreenBuffer, SphereListBuffer};
 
 pub struct RaytraceRenderContext<'a> {
     pub color_texture: WgpuTexture<'a>,
@@ -34,6 +34,8 @@ impl<'a> RaytraceRenderContext<'a> {
         render_state: &RenderState,
         screen_buffer: &ScreenBuffer,
         sphere_list_buffer: &SphereListBuffer,
+        plane_list_buffer: &PlaneListBuffer,
+        aabb_list_buffer: &AabbListBuffer,
     ) -> Self {
         let color_texture_config = WgpuTextureConfig {
             ty: WgpuTextureType::Texture2d,
@@ -74,14 +76,32 @@ impl<'a> RaytraceRenderContext<'a> {
             count: None,
         }]);
 
-        let object_binding = render_state.create_binding(&[WgpuBindingEntry {
-            visibility: wgpu::ShaderStages::COMPUTE,
-            binding_data: WgpuBindingData::Buffer {
-                buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                buffer: &sphere_list_buffer.buffer,
+        let object_binding = render_state.create_binding(&[
+            WgpuBindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: WgpuBindingData::Buffer {
+                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                    buffer: &sphere_list_buffer.buffer,
+                },
+                count: None,
             },
-            count: None,
-        }]);
+            WgpuBindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: WgpuBindingData::Buffer {
+                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                    buffer: &plane_list_buffer.buffer,
+                },
+                count: None,
+            },
+            WgpuBindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: WgpuBindingData::Buffer {
+                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                    buffer: &aabb_list_buffer.buffer,
+                },
+                count: None,
+            },
+        ]);
 
         let texture_binding = render_state.create_binding(&[
             WgpuBindingEntry {
@@ -182,15 +202,35 @@ impl<'a> RaytraceRenderContext<'a> {
         &mut self,
         render_state: &RenderState,
         sphere_list_buffer: &SphereListBuffer,
+        plane_list_buffer: &PlaneListBuffer,
+        aabb_list_buffer: &AabbListBuffer,
     ) {
-        self.object_binding = render_state.create_binding(&[WgpuBindingEntry {
-            visibility: wgpu::ShaderStages::COMPUTE,
-            binding_data: WgpuBindingData::Buffer {
-                buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                buffer: &sphere_list_buffer.buffer,
+        self.object_binding = render_state.create_binding(&[
+            WgpuBindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: WgpuBindingData::Buffer {
+                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                    buffer: &sphere_list_buffer.buffer,
+                },
+                count: None,
             },
-            count: None,
-        }]);
+            WgpuBindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: WgpuBindingData::Buffer {
+                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                    buffer: &plane_list_buffer.buffer,
+                },
+                count: None,
+            },
+            WgpuBindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: WgpuBindingData::Buffer {
+                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                    buffer: &aabb_list_buffer.buffer,
+                },
+                count: None,
+            },
+        ]);
     }
 
     pub fn recompile_shaders(&mut self, render_state: &RenderState) {
@@ -206,8 +246,15 @@ impl<'a> RaytraceRenderContext<'a> {
         &mut self,
         render_state: &RenderState,
         sphere_list_buffer: &SphereListBuffer,
+        plane_list_buffer: &PlaneListBuffer,
+        aabb_list_buffer: &AabbListBuffer,
     ) {
-        self.recreate_object_binding(render_state, sphere_list_buffer);
+        self.recreate_object_binding(
+            render_state,
+            sphere_list_buffer,
+            plane_list_buffer,
+            aabb_list_buffer,
+        );
     }
 
     pub fn draw(&self, encoder: &mut wgpu::CommandEncoder) {
