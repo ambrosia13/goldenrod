@@ -1,12 +1,13 @@
 use std::{fmt::Debug, path::Path};
 
 use binding::{WgpuBinding, WgpuBindingEntry};
-use buffer::{WgpuBuffer, WgpuBufferConfig};
+use buffer::{BufferData, WgpuBuffer, WgpuBufferConfig, WgpuBufferType};
 use pipeline::{WgpuComputePipelineConfig, WgpuPipelineLayoutConfig, WgpuRenderPipelineConfig};
 use shader::{WgpuShader, WgslShaderSource};
 use texture::{WgpuTexture, WgpuTextureConfig};
+use wgpu::util::DeviceExt;
 
-use super::render_state::RenderState;
+use super::render_state::{GpuContext, RenderState};
 
 pub mod binding;
 pub mod buffer;
@@ -41,7 +42,47 @@ pub trait RenderStateExt {
 
 impl RenderStateExt for RenderState {
     fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer {
-        WgpuBuffer::new(&self.device, name, config)
+        let ctx = self.ctx();
+
+        let (buffer, len) = match config.data {
+            BufferData::Init(data) => (
+                ctx.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some(name),
+                        contents: data,
+                        usage: config.usage
+                            | match config.ty {
+                                WgpuBufferType::Storage => wgpu::BufferUsages::STORAGE,
+                                WgpuBufferType::Uniform => wgpu::BufferUsages::UNIFORM,
+                                WgpuBufferType::Vertex => wgpu::BufferUsages::VERTEX,
+                                WgpuBufferType::Index => wgpu::BufferUsages::INDEX,
+                            },
+                    }),
+                data.len(),
+            ),
+            BufferData::Uninit(len) => (
+                ctx.device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some(name),
+                    size: len as u64,
+                    usage: config.usage
+                        | match config.ty {
+                            WgpuBufferType::Storage => wgpu::BufferUsages::STORAGE,
+                            WgpuBufferType::Uniform => wgpu::BufferUsages::UNIFORM,
+                            WgpuBufferType::Vertex => wgpu::BufferUsages::VERTEX,
+                            WgpuBufferType::Index => wgpu::BufferUsages::INDEX,
+                        },
+                    mapped_at_creation: false,
+                }),
+                len,
+            ),
+        };
+
+        WgpuBuffer {
+            buffer,
+            ty: config.ty,
+            len,
+            ctx,
+        }
     }
 
     fn create_binding(&self, entries: &[WgpuBindingEntry]) -> WgpuBinding {

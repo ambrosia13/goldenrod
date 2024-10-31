@@ -24,7 +24,6 @@ pub struct FinalRenderContext {
 impl FinalRenderContext {
     pub fn new(
         render_state: &RenderState,
-        surface_texture: &wgpu::SurfaceTexture,
         input_texture: &WgpuTexture,
         screen_buffer: &ScreenBuffer,
         screen_quad: &ScreenQuad,
@@ -76,7 +75,7 @@ impl FinalRenderContext {
                 vertex: &screen_quad.vertex_shader,
                 fragment: &shader,
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_texture.texture.format(),
+                    format: render_state.config.format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],

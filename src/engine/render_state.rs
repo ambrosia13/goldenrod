@@ -10,10 +10,18 @@ pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
     .union(wgpu::Features::ADDRESS_MODE_CLAMP_TO_ZERO)
     .union(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES);
 
+#[derive(Clone)]
+pub struct GpuContext {
+    pub instance: Arc<wgpu::Instance>,
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
+}
+
 pub struct RenderState {
     pub surface: wgpu::Surface<'static>,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
+    pub instance: Arc<wgpu::Instance>,
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub window: Arc<Window>,
@@ -77,13 +85,26 @@ impl RenderState {
 
         surface.configure(&device, &config);
 
+        let instance = Arc::new(instance);
+        let device = Arc::new(device);
+        let queue = Arc::new(queue);
+
         Self {
             surface,
+            instance,
             device,
             queue,
             config,
             size,
             window,
+        }
+    }
+
+    pub fn ctx(&self) -> GpuContext {
+        GpuContext {
+            instance: self.instance.clone(),
+            device: self.device.clone(),
+            queue: self.queue.clone(),
         }
     }
 

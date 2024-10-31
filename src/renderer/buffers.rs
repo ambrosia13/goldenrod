@@ -4,7 +4,7 @@ use gpu_bytes_derive::{AsStd140, AsStd430};
 
 use crate::{
     engine::{
-        render_state::RenderState,
+        render_state::{GpuContext, RenderState},
         render_state_ext::{
             buffer::{BufferData, WgpuBuffer, WgpuBufferConfig, WgpuBufferType},
             RenderStateExt,
@@ -122,11 +122,11 @@ impl ScreenBuffer {
 
     pub fn update(&mut self, render_state: &RenderState, camera: &Camera) {
         self.data.update(camera, render_state);
-        self.buffer.write(&render_state.queue, &self.data);
+        self.buffer.write(&self.data);
     }
 }
 
-trait UpdateFromObjectList {
+pub trait UpdateFromObjectList {
     fn update(&mut self, object_list: &ObjectList);
 }
 
@@ -134,10 +134,13 @@ pub struct ObjectListBuffer<T: AsStd140 + AsStd430 + UpdateFromObjectList + Defa
     pub name: String,
     pub data: T,
     pub buffer: WgpuBuffer,
+    ctx: GpuContext,
 }
 
 impl<T: AsStd140 + AsStd430 + UpdateFromObjectList + Default> ObjectListBuffer<T> {
     pub fn new(name: &str, render_state: &RenderState) -> Self {
+        let ctx = render_state.ctx();
+
         let data = T::default();
         let buffer_size = data.as_std430().align().as_slice().len();
 
@@ -152,6 +155,7 @@ impl<T: AsStd140 + AsStd430 + UpdateFromObjectList + Default> ObjectListBuffer<T
                 },
             ),
             name: name.to_owned(),
+            ctx,
         }
     }
 
@@ -181,7 +185,7 @@ impl<T: AsStd140 + AsStd430 + UpdateFromObjectList + Default> ObjectListBuffer<T
             true
         } else {
             // write to the existing buffer
-            self.buffer.write(&render_state.queue, &self.data);
+            self.buffer.write(&self.data);
 
             false
         }

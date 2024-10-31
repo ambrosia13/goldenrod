@@ -167,12 +167,9 @@ impl<'a> RaytraceRenderContext<'a> {
 
     fn recreate_textures(&mut self, render_state: &RenderState) {
         self.color_texture
-            .set_size(render_state.size.width, render_state.size.height);
+            .resize(render_state.size.width, render_state.size.height);
         self.color_texture_copy
-            .set_size(render_state.size.width, render_state.size.height);
-
-        self.color_texture.recreate(&render_state.device);
-        self.color_texture_copy.recreate(&render_state.device);
+            .resize(render_state.size.width, render_state.size.height);
 
         // texture binding needs to be recreated because we just recreated the textures
         // but the pipeline layout doesn't need to be recreated, since the layout remains the same, just the data is different
@@ -258,6 +255,12 @@ impl<'a> RaytraceRenderContext<'a> {
     }
 
     pub fn draw(&self, encoder: &mut wgpu::CommandEncoder) {
+        encoder.copy_texture_to_texture(
+            self.color_texture.texture().as_image_copy(),
+            self.color_texture_copy.texture().as_image_copy(),
+            self.color_texture.texture().size(),
+        );
+
         let workgroup_sizes = UVec3::new(8, 8, 1);
         let dimensions = UVec3::new(
             self.color_texture.texture().width(),

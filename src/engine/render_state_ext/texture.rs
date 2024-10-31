@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::engine::render_state::RenderState;
+use crate::engine::render_state::{GpuContext, RenderState};
 
 #[derive(Debug, Clone, Copy)]
 pub enum WgpuTextureType {
@@ -97,6 +97,8 @@ pub struct WgpuTexture<'a> {
 
     pub(in crate::engine::render_state_ext) texture: wgpu::Texture,
     pub(in crate::engine::render_state_ext) sampler: wgpu::Sampler,
+
+    pub(in crate::engine::render_state_ext) ctx: GpuContext,
 }
 
 impl<'a> WgpuTexture<'a> {
@@ -105,11 +107,13 @@ impl<'a> WgpuTexture<'a> {
         name: &'a str,
         config: WgpuTextureConfig,
     ) -> Self {
+        let ctx = render_state.ctx();
+
         let texture_descriptor = config.texture_descriptor(name);
         let sampler_descriptor = config.sampler_descriptor(name);
 
-        let texture = render_state.device.create_texture(&texture_descriptor);
-        let sampler = render_state.device.create_sampler(&sampler_descriptor);
+        let texture = ctx.device.create_texture(&texture_descriptor);
+        let sampler = ctx.device.create_sampler(&sampler_descriptor);
 
         Self {
             name,
@@ -118,12 +122,15 @@ impl<'a> WgpuTexture<'a> {
             sampler_descriptor,
             texture,
             sampler,
+            ctx,
         }
     }
 
-    pub fn set_size(&mut self, new_width: u32, new_height: u32) {
+    pub fn resize(&mut self, new_width: u32, new_height: u32) {
         self.texture_descriptor.size.width = new_width;
         self.texture_descriptor.size.height = new_height;
+
+        self.recreate();
     }
 
     pub fn set_descriptor(
@@ -140,11 +147,13 @@ impl<'a> WgpuTexture<'a> {
             label: Some(self.name),
             ..sampler_descriptor
         };
+
+        self.recreate();
     }
 
-    pub fn recreate(&mut self, device: &wgpu::Device) {
-        self.texture = device.create_texture(&self.texture_descriptor);
-        self.sampler = device.create_sampler(&self.sampler_descriptor);
+    fn recreate(&mut self) {
+        self.texture = self.ctx.device.create_texture(&self.texture_descriptor);
+        self.sampler = self.ctx.device.create_sampler(&self.sampler_descriptor);
     }
 
     pub fn texture(&self) -> &wgpu::Texture {
