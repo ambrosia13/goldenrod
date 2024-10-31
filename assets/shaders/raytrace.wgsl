@@ -233,5 +233,20 @@ fn compute(
         color += pathtrace(ray) / f32(rays);
     }
 
-    textureStore(color_texture, global_id.xy, vec4(color, 1.0));
+    let sample = textureLoad(color_texture_copy, global_id.xy);
+    let previous_color = sample.rgb;
+    var frame_age = sample.a;
+
+    let should_accumulate = 
+        all(screen.camera.position == screen.camera.previous_position) &&
+        all(screen.camera.view == screen.camera.previous_view) && 
+        all(screen.camera.projection_matrix[0] == screen.camera.previous_projection_matrix[0]);
+    
+    if !should_accumulate {
+        frame_age = 0.0;
+    }
+
+    color = mix(previous_color, color, 1.0 / (frame_age + 1.0));
+
+    textureStore(color_texture, global_id.xy, vec4(color, frame_age + 1.0));
 }
