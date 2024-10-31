@@ -82,7 +82,6 @@ impl<'a> EngineState<'a> {
         );
         let final_render_context = FinalRenderContext::new(
             render_state,
-            &render_state.surface.get_current_texture().unwrap(),
             &raytrace_render_context.color_texture,
             &screen_buffer,
             &screen_quad,
@@ -204,6 +203,17 @@ impl<'a> ApplicationHandler for App<'a> {
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 input::handle_mouse_input_event(&mut engine_state.input, state, button);
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                let delta = match delta {
+                    winit::event::MouseScrollDelta::LineDelta(_, lines_y) => lines_y / 20.0,
+                    winit::event::MouseScrollDelta::PixelDelta(physical_position) => {
+                        physical_position.y as f32
+                    },
+                };
+
+                engine_state.camera.fov += delta * 25.0;
+                engine_state.camera.fov = f32::clamp(engine_state.camera.fov, 30.0, 150.0);
             }
 
             WindowEvent::CloseRequested => event_loop.exit(),
