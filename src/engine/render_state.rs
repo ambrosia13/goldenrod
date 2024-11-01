@@ -100,7 +100,7 @@ impl RenderState {
         }
     }
 
-    pub fn ctx(&self) -> GpuState {
+    pub fn get_gpu_state(&self) -> GpuState {
         GpuState {
             instance: self.instance.clone(),
             device: self.device.clone(),

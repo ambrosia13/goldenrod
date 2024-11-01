@@ -134,19 +134,19 @@ pub struct ObjectListBuffer<T: AsStd140 + AsStd430 + UpdateFromObjectList + Defa
     pub name: String,
     pub data: T,
     pub buffer: WgpuBuffer,
-    ctx: GpuState,
+    gpu_state: GpuState,
 }
 
 impl<T: AsStd140 + AsStd430 + UpdateFromObjectList + Default> ObjectListBuffer<T> {
     pub fn new(name: &str, render_state: &RenderState) -> Self {
-        let ctx = render_state.ctx();
+        let gpu_state = render_state.get_gpu_state();
 
         let data = T::default();
         let buffer_size = data.as_std430().align().as_slice().len();
 
         Self {
             data,
-            buffer: render_state.create_buffer(
+            buffer: gpu_state.create_buffer(
                 name,
                 WgpuBufferConfig {
                     data: BufferData::Uninit(buffer_size),
@@ -155,12 +155,12 @@ impl<T: AsStd140 + AsStd430 + UpdateFromObjectList + Default> ObjectListBuffer<T
                 },
             ),
             name: name.to_owned(),
-            ctx,
+            gpu_state,
         }
     }
 
     /// returns true if reallocated
-    pub fn update(&mut self, render_state: &RenderState, object_list: &ObjectList) -> bool {
+    pub fn update(&mut self, object_list: &ObjectList) -> bool {
         self.data.update(object_list);
 
         let mut data = self.data.as_std430();
@@ -173,7 +173,7 @@ impl<T: AsStd140 + AsStd430 + UpdateFromObjectList + Default> ObjectListBuffer<T
             log::info!("{} reallocated", &self.name);
 
             // reallocate the buffer to fit the data
-            self.buffer = render_state.create_buffer(
+            self.buffer = self.gpu_state.create_buffer(
                 &self.name,
                 WgpuBufferConfig {
                     data: BufferData::Init(data.as_slice()),

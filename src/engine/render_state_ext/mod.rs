@@ -79,7 +79,7 @@ impl RenderStateExt for GpuState {
             buffer,
             ty: config.ty,
             len,
-            gpu: self.clone(),
+            gpu_state: self.clone(),
         }
     }
 
@@ -139,7 +139,7 @@ impl RenderStateExt for GpuState {
             sampler_descriptor,
             texture,
             sampler,
-            gpu: self.clone(),
+            gpu_state: self.clone(),
         }
     }
 
@@ -159,7 +159,7 @@ impl RenderStateExt for GpuState {
         WgpuShader {
             source,
             module,
-            gpu: self.clone(),
+            gpu_state: self.clone(),
         }
     }
 
@@ -232,23 +232,23 @@ impl RenderStateExt for GpuState {
 
 impl RenderStateExt for RenderState {
     fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer {
-        self.ctx().create_buffer(name, config)
+        self.get_gpu_state().create_buffer(name, config)
     }
 
     fn create_binding(&self, entries: &[WgpuBindingEntry]) -> WgpuBinding {
-        self.ctx().create_binding(entries)
+        self.get_gpu_state().create_binding(entries)
     }
 
     fn create_texture<'a>(&self, name: &'a str, config: WgpuTextureConfig) -> WgpuTexture<'a> {
-        self.ctx().create_texture(name, config)
+        self.get_gpu_state().create_texture(name, config)
     }
 
     fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> WgpuShader {
-        self.ctx().create_shader(relative_path)
+        self.get_gpu_state().create_shader(relative_path)
     }
 
     fn create_pipeline_layout(&self, config: WgpuPipelineLayoutConfig) -> wgpu::PipelineLayout {
-        self.ctx().create_pipeline_layout(config)
+        self.get_gpu_state().create_pipeline_layout(config)
     }
 
     fn create_compute_pipeline(
@@ -256,7 +256,7 @@ impl RenderStateExt for RenderState {
         name: &str,
         config: WgpuComputePipelineConfig,
     ) -> wgpu::ComputePipeline {
-        self.ctx().create_compute_pipeline(name, config)
+        self.get_gpu_state().create_compute_pipeline(name, config)
     }
 
     fn create_render_pipeline(
@@ -264,6 +264,6 @@ impl RenderStateExt for RenderState {
         name: &str,
         config: WgpuRenderPipelineConfig,
     ) -> wgpu::RenderPipeline {
-        self.ctx().create_render_pipeline(name, config)
+        self.get_gpu_state().create_render_pipeline(name, config)
     }
 }

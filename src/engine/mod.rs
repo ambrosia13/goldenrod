@@ -110,15 +110,14 @@ impl<'a> EngineState<'a> {
 
             #[rustfmt::skip]
             let update_object_bindings = 
-                self.sphere_list_buffer.update(render_state, &self.object_list) | 
-                self.plane_list_buffer.update(render_state, &self.object_list) | 
-                self.aabb_list_buffer.update(render_state, &self.object_list);
+                self.sphere_list_buffer.update(&self.object_list) | 
+                self.plane_list_buffer.update(&self.object_list) | 
+                self.aabb_list_buffer.update(&self.object_list);
 
             // if updating the object buffers caused a reallocation, update the bindings so the raytracer
             // has access to the new buffers
             if update_object_bindings {
                 self.raytrace_render_context.on_object_update(
-                    render_state,
                     &self.sphere_list_buffer,
                     &self.plane_list_buffer,
                     &self.aabb_list_buffer,
@@ -221,7 +220,7 @@ impl<'a> ApplicationHandler for App<'a> {
                 engine_state.camera.reconfigure_aspect(size);
                 render_state.resize(size);
 
-                engine_state.raytrace_render_context.resize(render_state);
+                engine_state.raytrace_render_context.resize(size);
                 engine_state.final_render_context.resize(&engine_state.raytrace_render_context.color_texture);
             }
             WindowEvent::RedrawRequested => {

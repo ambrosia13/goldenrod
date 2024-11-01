@@ -1,7 +1,8 @@
 use glam::UVec3;
+use winit::dpi::PhysicalSize;
 
 use crate::engine::{
-    render_state::RenderState,
+    render_state::{GpuState, RenderState},
     render_state_ext::{
         binding::{WgpuBinding, WgpuBindingData, WgpuBindingEntry},
         pass::WgpuComputePass,
@@ -25,6 +26,8 @@ pub struct RaytraceRenderContext<'a> {
     pub screen_binding: WgpuBinding,
     pub object_binding: WgpuBinding,
     pub texture_binding: WgpuBinding,
+
+    gpu_state: GpuState,
 }
 
 impl<'a> RaytraceRenderContext<'a> {
@@ -152,11 +155,12 @@ impl<'a> RaytraceRenderContext<'a> {
             screen_binding,
             object_binding,
             texture_binding,
+            gpu_state: render_state.get_gpu_state(),
         }
     }
 
-    fn recreate_pipeline(&mut self, render_state: &RenderState) {
-        self.pipeline = render_state.create_compute_pipeline(
+    fn recreate_pipeline(&mut self) {
+        self.pipeline = self.gpu_state.create_compute_pipeline(
             "Raytrace Compute Pipeline",
             WgpuComputePipelineConfig {
                 layout: &self.pipeline_layout,
@@ -165,15 +169,14 @@ impl<'a> RaytraceRenderContext<'a> {
         );
     }
 
-    fn recreate_textures(&mut self, render_state: &RenderState) {
-        self.color_texture
-            .resize(render_state.size.width, render_state.size.height);
+    fn recreate_textures(&mut self, new_size: PhysicalSize<u32>) {
+        self.color_texture.resize(new_size.width, new_size.height);
         self.color_texture_copy
-            .resize(render_state.size.width, render_state.size.height);
+            .resize(new_size.width, new_size.height);
 
         // texture binding needs to be recreated because we just recreated the textures
         // but the pipeline layout doesn't need to be recreated, since the layout remains the same, just the data is different
-        self.texture_binding = render_state.create_binding(&[
+        self.texture_binding = self.gpu_state.create_binding(&[
             WgpuBindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
                 binding_data: WgpuBindingData::TextureStorage {
@@ -197,12 +200,11 @@ impl<'a> RaytraceRenderContext<'a> {
 
     fn recreate_object_binding(
         &mut self,
-        render_state: &RenderState,
         sphere_list_buffer: &SphereListBuffer,
         plane_list_buffer: &PlaneListBuffer,
         aabb_list_buffer: &AabbListBuffer,
     ) {
-        self.object_binding = render_state.create_binding(&[
+        self.object_binding = self.gpu_state.create_binding(&[
             WgpuBindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
                 binding_data: WgpuBindingData::Buffer {
@@ -230,28 +232,22 @@ impl<'a> RaytraceRenderContext<'a> {
         ]);
     }
 
-    pub fn recompile_shaders(&mut self, render_state: &RenderState) {
+    pub fn recompile_shaders(&mut self) {
         self.shader.recreate();
-        self.recreate_pipeline(render_state);
+        self.recreate_pipeline();
     }
 
-    pub fn resize(&mut self, render_state: &RenderState) {
-        self.recreate_textures(render_state);
+    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        self.recreate_textures(new_size);
     }
 
     pub fn on_object_update(
         &mut self,
-        render_state: &RenderState,
         sphere_list_buffer: &SphereListBuffer,
         plane_list_buffer: &PlaneListBuffer,
         aabb_list_buffer: &AabbListBuffer,
     ) {
-        self.recreate_object_binding(
-            render_state,
-            sphere_list_buffer,
-            plane_list_buffer,
-            aabb_list_buffer,
-        );
+        self.recreate_object_binding(sphere_list_buffer, plane_list_buffer, aabb_list_buffer);
     }
 
     pub fn draw(&self, encoder: &mut wgpu::CommandEncoder) {

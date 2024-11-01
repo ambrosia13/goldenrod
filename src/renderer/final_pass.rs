@@ -93,7 +93,7 @@ impl FinalRenderContext {
             screen_binding,
             texture_binding,
             surface_format: render_state.config.format,
-            gpu_state: render_state.ctx(),
+            gpu_state: render_state.get_gpu_state(),
         }
     }
 

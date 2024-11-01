@@ -29,7 +29,7 @@ pub struct WgpuBuffer {
     pub(in crate::engine::render_state_ext) ty: WgpuBufferType,
     pub(in crate::engine::render_state_ext) len: usize,
 
-    pub(in crate::engine::render_state_ext) gpu: GpuState,
+    pub(in crate::engine::render_state_ext) gpu_state: GpuState,
 }
 
 impl WgpuBuffer {
@@ -39,13 +39,17 @@ impl WgpuBuffer {
                 let mut std430 = data.as_std430();
                 std430.align();
 
-                self.gpu.queue.write_buffer(self, 0, std430.as_slice());
+                self.gpu_state
+                    .queue
+                    .write_buffer(self, 0, std430.as_slice());
             }
             WgpuBufferType::Uniform | WgpuBufferType::Vertex | WgpuBufferType::Index => {
                 let mut std140 = data.as_std140();
                 std140.align();
 
-                self.gpu.queue.write_buffer(self, 0, std140.as_slice());
+                self.gpu_state
+                    .queue
+                    .write_buffer(self, 0, std140.as_slice());
             }
         }
     }
