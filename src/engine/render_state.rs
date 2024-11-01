@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use winit::window::Window;
 
@@ -11,7 +11,7 @@ pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
     .union(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES);
 
 #[derive(Clone)]
-pub struct GpuContext {
+pub struct GpuState {
     pub instance: Arc<wgpu::Instance>,
     pub device: Arc<wgpu::Device>,
     pub queue: Arc<wgpu::Queue>,
@@ -100,8 +100,8 @@ impl RenderState {
         }
     }
 
-    pub fn ctx(&self) -> GpuContext {
-        GpuContext {
+    pub fn ctx(&self) -> GpuState {
+        GpuState {
             instance: self.instance.clone(),
             device: self.device.clone(),
             queue: self.queue.clone(),

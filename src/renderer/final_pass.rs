@@ -1,5 +1,5 @@
 use crate::engine::{
-    render_state::RenderState,
+    render_state::{GpuState, RenderState},
     render_state_ext::{
         binding::{WgpuBinding, WgpuBindingData, WgpuBindingEntry},
         pass::WgpuRenderPass,
@@ -19,6 +19,10 @@ pub struct FinalRenderContext {
 
     pub screen_binding: WgpuBinding,
     pub texture_binding: WgpuBinding,
+
+    pub surface_format: wgpu::TextureFormat,
+
+    gpu_state: GpuState,
 }
 
 impl FinalRenderContext {
@@ -88,11 +92,13 @@ impl FinalRenderContext {
             pipeline,
             screen_binding,
             texture_binding,
+            surface_format: render_state.config.format,
+            gpu_state: render_state.ctx(),
         }
     }
 
-    fn recreate_pipeline(&mut self, render_state: &RenderState, screen_quad: &ScreenQuad) {
-        self.pipeline = render_state.create_render_pipeline(
+    fn recreate_pipeline(&mut self, screen_quad: &ScreenQuad) {
+        self.pipeline = self.gpu_state.create_render_pipeline(
             "Final Pass Render Pipeline",
             WgpuRenderPipelineConfig {
                 layout: &self.pipeline_layout,
@@ -100,7 +106,7 @@ impl FinalRenderContext {
                 vertex: &screen_quad.vertex_shader,
                 fragment: &self.shader,
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: render_state.config.format,
+                    format: self.surface_format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -108,8 +114,8 @@ impl FinalRenderContext {
         );
     }
 
-    fn update_input_texture(&mut self, render_state: &RenderState, input_texture: &WgpuTexture) {
-        self.texture_binding = render_state.create_binding(&[
+    fn update_input_texture(&mut self, input_texture: &WgpuTexture) {
+        self.texture_binding = self.gpu_state.create_binding(&[
             WgpuBindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 binding_data: WgpuBindingData::TextureView {
@@ -130,69 +136,13 @@ impl FinalRenderContext {
     }
 
     // since the input texture is recreated when the screen is resized, so does the binding for it in this pass.
-    pub fn resize(&mut self, render_state: &RenderState, input_texture: &WgpuTexture) {
-        self.update_input_texture(render_state, input_texture);
+    pub fn resize(&mut self, input_texture: &WgpuTexture) {
+        self.update_input_texture(input_texture);
     }
 
-    pub fn recompile_shaders(&mut self, render_state: &RenderState, screen_quad: &ScreenQuad) {
-        self.shader.recreate(&render_state.device);
-        self.recreate_pipeline(render_state, screen_quad);
-    }
-
-    pub fn recreate(
-        &mut self,
-        render_state: &RenderState,
-        screen_quad: &ScreenQuad,
-        input_texture: &WgpuTexture,
-        surface_texture: &wgpu::SurfaceTexture,
-        recompile_shaders: bool,
-    ) {
-        self.texture_binding = render_state.create_binding(&[
-            WgpuBindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureView {
-                    texture: input_texture,
-                    texture_view: &input_texture.view(0..1, 0..1),
-                },
-                count: None,
-            },
-            WgpuBindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureSampler {
-                    sampler_type: wgpu::SamplerBindingType::Filtering,
-                    texture: input_texture,
-                },
-                count: None,
-            },
-        ]);
-
-        if recompile_shaders {
-            self.shader.recreate(&render_state.device);
-        }
-
-        let pipeline_layout = render_state.create_pipeline_layout(WgpuPipelineLayoutConfig {
-            bind_group_layouts: &[
-                screen_quad.vertex_index_binding.bind_group_layout(),
-                self.screen_binding.bind_group_layout(),
-                self.texture_binding.bind_group_layout(),
-            ],
-            push_constant_config: WgpuPushConstantConfig::default(),
-        });
-
-        self.pipeline = render_state.create_render_pipeline(
-            "Final Pass Render Pipeline",
-            WgpuRenderPipelineConfig {
-                layout: &pipeline_layout,
-                vertex_buffer_layouts: &[],
-                vertex: &screen_quad.vertex_shader,
-                fragment: &self.shader,
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_texture.texture.format(),
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            },
-        );
+    pub fn recompile_shaders(&mut self, screen_quad: &ScreenQuad) {
+        self.shader.recreate();
+        self.recreate_pipeline(screen_quad);
     }
 
     pub fn draw(

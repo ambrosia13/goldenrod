@@ -7,7 +7,7 @@ use shader::{WgpuShader, WgslShaderSource};
 use texture::{WgpuTexture, WgpuTextureConfig};
 use wgpu::util::DeviceExt;
 
-use super::render_state::{GpuContext, RenderState};
+use super::render_state::{GpuState, RenderState};
 
 pub mod binding;
 pub mod buffer;
@@ -40,13 +40,11 @@ pub trait RenderStateExt {
     ) -> wgpu::RenderPipeline;
 }
 
-impl RenderStateExt for RenderState {
+impl RenderStateExt for GpuState {
     fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer {
-        let ctx = self.ctx();
-
         let (buffer, len) = match config.data {
             BufferData::Init(data) => (
-                ctx.device
+                self.device
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some(name),
                         contents: data,
@@ -61,7 +59,7 @@ impl RenderStateExt for RenderState {
                 data.len(),
             ),
             BufferData::Uninit(len) => (
-                ctx.device.create_buffer(&wgpu::BufferDescriptor {
+                self.device.create_buffer(&wgpu::BufferDescriptor {
                     label: Some(name),
                     size: len as u64,
                     usage: config.usage
@@ -81,7 +79,7 @@ impl RenderStateExt for RenderState {
             buffer,
             ty: config.ty,
             len,
-            ctx,
+            gpu: self.clone(),
         }
     }
 
@@ -128,7 +126,21 @@ impl RenderStateExt for RenderState {
     }
 
     fn create_texture<'a>(&self, name: &'a str, config: WgpuTextureConfig) -> WgpuTexture<'a> {
-        WgpuTexture::new(self, name, config)
+        let texture_descriptor = config.texture_descriptor(name);
+        let sampler_descriptor = config.sampler_descriptor(name);
+
+        let texture = self.device.create_texture(&texture_descriptor);
+        let sampler = self.device.create_sampler(&sampler_descriptor);
+
+        WgpuTexture {
+            name,
+            ty: config.ty,
+            texture_descriptor,
+            sampler_descriptor,
+            texture,
+            sampler,
+            gpu: self.clone(),
+        }
     }
 
     fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> WgpuShader {
@@ -144,7 +156,11 @@ impl RenderStateExt for RenderState {
             module = self.device.create_shader_module(source.desc());
         }
 
-        WgpuShader { source, module }
+        WgpuShader {
+            source,
+            module,
+            gpu: self.clone(),
+        }
     }
 
     fn create_pipeline_layout(&self, config: WgpuPipelineLayoutConfig) -> wgpu::PipelineLayout {
@@ -211,5 +227,43 @@ impl RenderStateExt for RenderState {
                 multiview: None,
                 cache: None,
             })
+    }
+}
+
+impl RenderStateExt for RenderState {
+    fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer {
+        self.ctx().create_buffer(name, config)
+    }
+
+    fn create_binding(&self, entries: &[WgpuBindingEntry]) -> WgpuBinding {
+        self.ctx().create_binding(entries)
+    }
+
+    fn create_texture<'a>(&self, name: &'a str, config: WgpuTextureConfig) -> WgpuTexture<'a> {
+        self.ctx().create_texture(name, config)
+    }
+
+    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> WgpuShader {
+        self.ctx().create_shader(relative_path)
+    }
+
+    fn create_pipeline_layout(&self, config: WgpuPipelineLayoutConfig) -> wgpu::PipelineLayout {
+        self.ctx().create_pipeline_layout(config)
+    }
+
+    fn create_compute_pipeline(
+        &self,
+        name: &str,
+        config: WgpuComputePipelineConfig,
+    ) -> wgpu::ComputePipeline {
+        self.ctx().create_compute_pipeline(name, config)
+    }
+
+    fn create_render_pipeline(
+        &self,
+        name: &str,
+        config: WgpuRenderPipelineConfig,
+    ) -> wgpu::RenderPipeline {
+        self.ctx().create_render_pipeline(name, config)
     }
 }

@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::util;
+use crate::{engine::render_state::GpuState, util};
 
 pub enum WgslShaderSource {
     File {
@@ -99,6 +99,8 @@ impl WgslShaderSource {
 pub struct WgpuShader {
     pub(in crate::engine::render_state_ext) source: WgslShaderSource,
     pub(in crate::engine::render_state_ext) module: wgpu::ShaderModule,
+
+    pub(in crate::engine::render_state_ext) gpu: GpuState,
 }
 
 impl WgpuShader {
@@ -110,17 +112,21 @@ impl WgpuShader {
         &self.module
     }
 
-    pub fn recreate(&mut self, device: &wgpu::Device) {
+    pub fn recreate(&mut self) {
         self.source.reload();
 
         // so we can catch shader compilation errors instead of panicking
-        device.push_error_scope(wgpu::ErrorFilter::Validation);
-        self.module = device.create_shader_module(self.source.desc());
-        let err = pollster::block_on(device.pop_error_scope());
+        self.gpu
+            .device
+            .push_error_scope(wgpu::ErrorFilter::Validation);
+
+        self.module = self.gpu.device.create_shader_module(self.source.desc());
+
+        let err = pollster::block_on(self.gpu.device.pop_error_scope());
 
         if err.is_some() {
             self.source = WgslShaderSource::fallback(self.source.path());
-            self.module = device.create_shader_module(self.source.desc());
+            self.module = self.gpu.device.create_shader_module(self.source.desc());
         }
     }
 }

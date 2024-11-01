@@ -231,7 +231,7 @@ impl<'a> RaytraceRenderContext<'a> {
     }
 
     pub fn recompile_shaders(&mut self, render_state: &RenderState) {
-        self.shader.recreate(&render_state.device);
+        self.shader.recreate();
         self.recreate_pipeline(render_state);
     }
 

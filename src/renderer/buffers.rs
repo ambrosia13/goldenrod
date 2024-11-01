@@ -4,7 +4,7 @@ use gpu_bytes_derive::{AsStd140, AsStd430};
 
 use crate::{
     engine::{
-        render_state::{GpuContext, RenderState},
+        render_state::{GpuState, RenderState},
         render_state_ext::{
             buffer::{BufferData, WgpuBuffer, WgpuBufferConfig, WgpuBufferType},
             RenderStateExt,
@@ -134,7 +134,7 @@ pub struct ObjectListBuffer<T: AsStd140 + AsStd430 + UpdateFromObjectList + Defa
     pub name: String,
     pub data: T,
     pub buffer: WgpuBuffer,
-    ctx: GpuContext,
+    ctx: GpuState,
 }
 
 impl<T: AsStd140 + AsStd430 + UpdateFromObjectList + Default> ObjectListBuffer<T> {

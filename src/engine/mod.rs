@@ -222,7 +222,7 @@ impl<'a> ApplicationHandler for App<'a> {
                 render_state.resize(size);
 
                 engine_state.raytrace_render_context.resize(render_state);
-                engine_state.final_render_context.resize(render_state, &engine_state.raytrace_render_context.color_texture);
+                engine_state.final_render_context.resize(&engine_state.raytrace_render_context.color_texture);
             }
             WindowEvent::RedrawRequested => {
                 // We want another frame after this one

@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::engine::render_state::{GpuContext, RenderState};
+use crate::engine::render_state::{GpuState, RenderState};
 
 #[derive(Debug, Clone, Copy)]
 pub enum WgpuTextureType {
@@ -98,7 +98,7 @@ pub struct WgpuTexture<'a> {
     pub(in crate::engine::render_state_ext) texture: wgpu::Texture,
     pub(in crate::engine::render_state_ext) sampler: wgpu::Sampler,
 
-    pub(in crate::engine::render_state_ext) ctx: GpuContext,
+    pub(in crate::engine::render_state_ext) gpu: GpuState,
 }
 
 impl<'a> WgpuTexture<'a> {
@@ -122,7 +122,7 @@ impl<'a> WgpuTexture<'a> {
             sampler_descriptor,
             texture,
             sampler,
-            ctx,
+            gpu: ctx,
         }
     }
 
@@ -152,8 +152,8 @@ impl<'a> WgpuTexture<'a> {
     }
 
     fn recreate(&mut self) {
-        self.texture = self.ctx.device.create_texture(&self.texture_descriptor);
-        self.sampler = self.ctx.device.create_sampler(&self.sampler_descriptor);
+        self.texture = self.gpu.device.create_texture(&self.texture_descriptor);
+        self.sampler = self.gpu.device.create_sampler(&self.sampler_descriptor);
     }
 
     pub fn texture(&self) -> &wgpu::Texture {
