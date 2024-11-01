@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 
 use winit::window::Window;
 
@@ -106,10 +106,6 @@ impl RenderState {
             device: self.device.clone(),
             queue: self.queue.clone(),
         }
-    }
-
-    pub fn window(&self) -> &Window {
-        &self.window
     }
 
     pub fn reconfigure(&self) {

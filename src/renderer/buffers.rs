@@ -200,10 +200,10 @@ pub struct SphereListUniform {
 
 impl UpdateFromObjectList for SphereListUniform {
     fn update(&mut self, object_list: &ObjectList) {
-        self.num_spheres = object_list.spheres.len() as u32;
+        self.num_spheres = object_list.spheres().len() as u32;
 
         self.list = Vec::with_capacity(self.list.capacity());
-        self.list.extend_from_slice(&object_list.spheres);
+        self.list.extend_from_slice(&object_list.spheres());
     }
 }
 
@@ -224,10 +224,10 @@ pub struct PlaneListUniform {
 
 impl UpdateFromObjectList for PlaneListUniform {
     fn update(&mut self, object_list: &ObjectList) {
-        self.num_planes = object_list.planes.len() as u32;
+        self.num_planes = object_list.planes().len() as u32;
 
         self.list = Vec::with_capacity(self.list.capacity());
-        self.list.extend_from_slice(&object_list.planes);
+        self.list.extend_from_slice(&object_list.planes());
     }
 }
 
@@ -248,10 +248,10 @@ pub struct AabbListUniform {
 
 impl UpdateFromObjectList for AabbListUniform {
     fn update(&mut self, object_list: &ObjectList) {
-        self.num_aabbs = object_list.aabbs.len() as u32;
+        self.num_aabbs = object_list.aabbs().len() as u32;
 
         self.list = Vec::with_capacity(self.list.capacity());
-        self.list.extend_from_slice(&object_list.aabbs);
+        self.list.extend_from_slice(&object_list.aabbs());
     }
 }
 

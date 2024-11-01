@@ -4,7 +4,6 @@ use rand::Rng;
 
 use super::material::{Material, MaterialType};
 
-const OBJECT_COUNT: usize = 32;
 const PAD_THICKNESS: f32 = 0.00025;
 
 #[derive(AsStd140, AsStd430, Default, Debug, Clone, Copy)]
@@ -86,11 +85,11 @@ impl Aabb {
 }
 
 pub struct ObjectList {
-    pub spheres: Vec<Sphere>,
-    pub planes: Vec<Plane>,
-    pub aabbs: Vec<Aabb>,
+    spheres: Vec<Sphere>,
+    planes: Vec<Plane>,
+    aabbs: Vec<Aabb>,
 
-    pub version: u32,
+    version: u32,
 }
 
 impl ObjectList {
@@ -110,7 +109,7 @@ impl ObjectList {
         self.planes.clear();
         self.aabbs.clear();
 
-        self.planes.push(Plane::new(
+        self.push_plane(Plane::new(
             Vec3::Y,
             Vec3::ZERO,
             Material {
@@ -191,5 +190,21 @@ impl ObjectList {
     pub fn push_aabb(&mut self, aabb: Aabb) {
         self.version += 1;
         self.aabbs.push(aabb);
+    }
+
+    pub fn spheres(&self) -> &[Sphere] {
+        &self.spheres
+    }
+
+    pub fn planes(&self) -> &[Plane] {
+        &self.planes
+    }
+
+    pub fn aabbs(&self) -> &[Aabb] {
+        &self.aabbs
+    }
+
+    pub fn version(&self) -> u32 {
+        self.version
     }
 }

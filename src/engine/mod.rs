@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use glam::Vec3;
-use input::Input;
+use engine_state::EngineState;
 use render_state::RenderState;
-use time::Time;
+use renderer::Renderer;
 use winit::{
     application::ApplicationHandler,
     event::{DeviceEvent, WindowEvent},
@@ -11,131 +10,21 @@ use winit::{
     window::{Window, WindowAttributes},
 };
 
-use crate::{
-    renderer::{
-        buffers::{AabbListBuffer, PlaneListBuffer, ScreenBuffer, SphereListBuffer},
-        final_pass::FinalRenderContext,
-        raytrace::RaytraceRenderContext,
-        screen_quad::ScreenQuad,
-    },
-    state::{
-        camera::Camera,
-        object::ObjectList,
-    },
-};
-
+pub mod engine_state;
 pub mod input;
 pub mod render_state;
 pub mod render_state_ext;
+pub mod renderer;
 pub mod time;
 
-pub struct EngineState<'a> {
-    pub input: Input,
-    pub time: Time,
-
-    pub camera: Camera,
-    pub object_list: ObjectList,
-
-    pub screen_buffer: ScreenBuffer,
-
-    pub object_buffer_version: u32,
-    pub sphere_list_buffer: SphereListBuffer,
-    pub plane_list_buffer: PlaneListBuffer,
-    pub aabb_list_buffer: AabbListBuffer,
-
-    pub screen_quad: ScreenQuad,
-    pub raytrace_render_context: RaytraceRenderContext<'a>,
-    pub final_render_context: FinalRenderContext,
-}
-
-impl<'a> EngineState<'a> {
-    pub fn new(render_state: &RenderState) -> Self {
-        let input = Input::new();
-        let time = Time::new();
-
-        let camera = Camera::new(
-            Vec3::ZERO,
-            Vec3::NEG_Z,
-            45.0,
-            render_state.size,
-            0.005,
-            500.0,
-        );
-
-        let mut object_list = ObjectList::new();
-        object_list.random_scene();
-
-        let screen_buffer = ScreenBuffer::new(render_state);
-
-        let object_buffer_version = 0;
-        let sphere_list_buffer = SphereListBuffer::new("Sphere List Buffer", render_state);
-        let plane_list_buffer = PlaneListBuffer::new("Plane List Buffer", render_state);
-        let aabb_list_buffer = AabbListBuffer::new("AABB List Buffer", render_state);
-
-        let screen_quad = ScreenQuad::new(render_state);
-        let raytrace_render_context = RaytraceRenderContext::new(
-            render_state,
-            &screen_buffer,
-            &sphere_list_buffer,
-            &plane_list_buffer,
-            &aabb_list_buffer,
-        );
-        let final_render_context = FinalRenderContext::new(
-            render_state,
-            &raytrace_render_context.color_texture,
-            &screen_buffer,
-            &screen_quad,
-        );
-
-        Self {
-            input,
-            time,
-            camera,
-            object_list,
-            screen_buffer,
-            object_buffer_version,
-            sphere_list_buffer,
-            plane_list_buffer,
-            aabb_list_buffer,
-            screen_quad,
-            raytrace_render_context,
-            final_render_context,
-        }
-    }
-
-    pub fn update_object_buffers(&mut self, render_state: &RenderState) {
-        // If the object buffers don't reflect the current object list, update those
-        if self.object_buffer_version != self.object_list.version {
-            log::info!("Updating object buffers");
-
-            #[rustfmt::skip]
-            let update_object_bindings = 
-                self.sphere_list_buffer.update(&self.object_list) | 
-                self.plane_list_buffer.update(&self.object_list) | 
-                self.aabb_list_buffer.update(&self.object_list);
-
-            // if updating the object buffers caused a reallocation, update the bindings so the raytracer
-            // has access to the new buffers
-            if update_object_bindings {
-                self.raytrace_render_context.on_object_update(
-                    &self.sphere_list_buffer,
-                    &self.plane_list_buffer,
-                    &self.aabb_list_buffer,
-                );
-            }
-
-            // update the version to match
-            self.object_buffer_version = self.object_list.version;
-        }
-    }
-}
-
+#[allow(clippy::large_enum_variant)]
 pub enum AppState<'a> {
     Uninit,
     Init {
         window: Arc<Window>,
         render_state: RenderState,
-        engine_state: EngineState<'a>,
+        engine_state: EngineState,
+        renderer: Renderer<'a>,
     },
 }
 
@@ -166,11 +55,13 @@ impl<'a> ApplicationHandler for App<'a> {
 
             let render_state = pollster::block_on(RenderState::new(window.clone()));
             let engine_state = EngineState::new(&render_state);
+            let renderer = Renderer::init(&render_state);
 
             self.state = AppState::Init {
                 window,
                 render_state,
                 engine_state,
+                renderer,
             };
 
             log::info!("App state initialized");
@@ -187,6 +78,7 @@ impl<'a> ApplicationHandler for App<'a> {
             window,
             render_state,
             engine_state,
+            renderer,
         } = &mut self.state
         else {
             return;
@@ -208,7 +100,7 @@ impl<'a> ApplicationHandler for App<'a> {
                     winit::event::MouseScrollDelta::LineDelta(_, lines_y) => lines_y / 20.0,
                     winit::event::MouseScrollDelta::PixelDelta(physical_position) => {
                         physical_position.y as f32
-                    },
+                    }
                 };
 
                 engine_state.camera.fov += delta * 25.0;
@@ -220,8 +112,10 @@ impl<'a> ApplicationHandler for App<'a> {
                 engine_state.camera.reconfigure_aspect(size);
                 render_state.resize(size);
 
-                engine_state.raytrace_render_context.resize(size);
-                engine_state.final_render_context.resize(&engine_state.raytrace_render_context.color_texture);
+                renderer.raytrace_render_context.resize(size);
+                renderer
+                    .final_render_context
+                    .resize(&renderer.raytrace_render_context.color_texture);
             }
             WindowEvent::RedrawRequested => {
                 // We want another frame after this one
@@ -244,19 +138,12 @@ impl<'a> ApplicationHandler for App<'a> {
                     }
                 };
 
-                engine_state.update_object_buffers(render_state);
-
-                engine_state.camera.update_position(&engine_state.input, &engine_state.time);
-
-                engine_state.screen_buffer.update(render_state, &engine_state.camera);
-
-                engine_state.raytrace_render_context.draw(&mut encoder);
-                engine_state.final_render_context.draw(&mut encoder, &surface_texture, &engine_state.screen_quad);
+                engine_state.update();
+                renderer.update(render_state, engine_state, &mut encoder, &surface_texture);
 
                 render_state.finish_frame(encoder, surface_texture);
 
-                engine_state.input.update();
-                engine_state.time.update();
+                engine_state.post_frame_update();
             }
             _ => {}
         }
