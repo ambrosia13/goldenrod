@@ -40,6 +40,8 @@ impl<'a> RaytraceRenderContext<'a> {
         plane_list_buffer: &PlaneListBuffer,
         aabb_list_buffer: &AabbListBuffer,
     ) -> Self {
+        let gpu_state = render_state.get_gpu_state();
+
         let color_texture_config = WgpuTextureConfig {
             ty: WgpuTextureType::Texture2d,
             format: Self::TEXTURE_FORMAT,
@@ -52,7 +54,7 @@ impl<'a> RaytraceRenderContext<'a> {
             usage: wgpu::TextureUsages::empty(),
         };
 
-        let color_texture = render_state.create_texture(
+        let color_texture = gpu_state.create_texture(
             "Raytrace Color Texture",
             WgpuTextureConfig {
                 usage: wgpu::TextureUsages::STORAGE_BINDING
@@ -62,7 +64,7 @@ impl<'a> RaytraceRenderContext<'a> {
             },
         );
 
-        let color_texture_copy = render_state.create_texture(
+        let color_texture_copy = gpu_state.create_texture(
             "Raytrace Color Texture Copy",
             WgpuTextureConfig {
                 usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
@@ -70,7 +72,7 @@ impl<'a> RaytraceRenderContext<'a> {
             },
         );
 
-        let screen_binding = render_state.create_binding(&[WgpuBindingEntry {
+        let screen_binding = gpu_state.create_binding(&[WgpuBindingEntry {
             visibility: wgpu::ShaderStages::COMPUTE,
             binding_data: WgpuBindingData::Buffer {
                 buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
@@ -79,53 +81,15 @@ impl<'a> RaytraceRenderContext<'a> {
             count: None,
         }]);
 
-        let object_binding = render_state.create_binding(&[
-            WgpuBindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &sphere_list_buffer.buffer,
-                },
-                count: None,
-            },
-            WgpuBindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &plane_list_buffer.buffer,
-                },
-                count: None,
-            },
-            WgpuBindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &aabb_list_buffer.buffer,
-                },
-                count: None,
-            },
-        ]);
+        let object_binding = Self::create_object_binding(
+            &gpu_state,
+            sphere_list_buffer,
+            plane_list_buffer,
+            aabb_list_buffer,
+        );
 
-        let texture_binding = render_state.create_binding(&[
-            WgpuBindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::TextureStorage {
-                    access: wgpu::StorageTextureAccess::WriteOnly,
-                    texture_view: &color_texture.view(0..1, 0..1),
-                    texture: &color_texture,
-                },
-                count: None,
-            },
-            WgpuBindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::TextureStorage {
-                    access: wgpu::StorageTextureAccess::ReadOnly,
-                    texture_view: &color_texture_copy.view(0..1, 0..1),
-                    texture: &color_texture_copy,
-                },
-                count: None,
-            },
-        ]);
+        let texture_binding =
+            Self::create_texture_binding(&gpu_state, &color_texture, &color_texture_copy);
 
         let shader = render_state.create_shader("assets/shaders/raytrace.wgsl");
 
@@ -159,30 +123,18 @@ impl<'a> RaytraceRenderContext<'a> {
         }
     }
 
-    fn recreate_pipeline(&mut self) {
-        self.pipeline = self.gpu_state.create_compute_pipeline(
-            "Raytrace Compute Pipeline",
-            WgpuComputePipelineConfig {
-                layout: &self.pipeline_layout,
-                shader: &self.shader,
-            },
-        );
-    }
-
-    fn recreate_textures(&mut self, new_size: PhysicalSize<u32>) {
-        self.color_texture.resize(new_size.width, new_size.height);
-        self.color_texture_copy
-            .resize(new_size.width, new_size.height);
-
-        // texture binding needs to be recreated because we just recreated the textures
-        // but the pipeline layout doesn't need to be recreated, since the layout remains the same, just the data is different
-        self.texture_binding = self.gpu_state.create_binding(&[
+    fn create_texture_binding(
+        gpu_state: &GpuState,
+        texture: &WgpuTexture,
+        texture_copy: &WgpuTexture,
+    ) -> WgpuBinding {
+        gpu_state.create_binding(&[
             WgpuBindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
                 binding_data: WgpuBindingData::TextureStorage {
                     access: wgpu::StorageTextureAccess::WriteOnly,
-                    texture_view: &self.color_texture.view(0..1, 0..1),
-                    texture: &self.color_texture,
+                    texture_view: &texture.view(0..1, 0..1),
+                    texture,
                 },
                 count: None,
             },
@@ -190,21 +142,21 @@ impl<'a> RaytraceRenderContext<'a> {
                 visibility: wgpu::ShaderStages::COMPUTE,
                 binding_data: WgpuBindingData::TextureStorage {
                     access: wgpu::StorageTextureAccess::ReadOnly,
-                    texture_view: &self.color_texture_copy.view(0..1, 0..1),
-                    texture: &self.color_texture_copy,
+                    texture_view: &texture_copy.view(0..1, 0..1),
+                    texture: texture_copy,
                 },
                 count: None,
             },
-        ]);
+        ])
     }
 
-    fn recreate_object_binding(
-        &mut self,
+    fn create_object_binding(
+        gpu_state: &GpuState,
         sphere_list_buffer: &SphereListBuffer,
         plane_list_buffer: &PlaneListBuffer,
         aabb_list_buffer: &AabbListBuffer,
-    ) {
-        self.object_binding = self.gpu_state.create_binding(&[
+    ) -> WgpuBinding {
+        gpu_state.create_binding(&[
             WgpuBindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
                 binding_data: WgpuBindingData::Buffer {
@@ -229,7 +181,45 @@ impl<'a> RaytraceRenderContext<'a> {
                 },
                 count: None,
             },
-        ]);
+        ])
+    }
+
+    fn recreate_pipeline(&mut self) {
+        self.pipeline = self.gpu_state.create_compute_pipeline(
+            "Raytrace Compute Pipeline",
+            WgpuComputePipelineConfig {
+                layout: &self.pipeline_layout,
+                shader: &self.shader,
+            },
+        );
+    }
+
+    fn recreate_textures(&mut self, new_size: PhysicalSize<u32>) {
+        self.color_texture.resize(new_size.width, new_size.height);
+        self.color_texture_copy
+            .resize(new_size.width, new_size.height);
+
+        // texture binding needs to be recreated because we just recreated the textures
+        // but the pipeline layout doesn't need to be recreated, since the layout remains the same, just the data is different
+        self.texture_binding = Self::create_texture_binding(
+            &self.gpu_state,
+            &self.color_texture,
+            &self.color_texture_copy,
+        );
+    }
+
+    fn recreate_object_binding(
+        &mut self,
+        sphere_list_buffer: &SphereListBuffer,
+        plane_list_buffer: &PlaneListBuffer,
+        aabb_list_buffer: &AabbListBuffer,
+    ) {
+        self.object_binding = Self::create_object_binding(
+            &self.gpu_state,
+            sphere_list_buffer,
+            plane_list_buffer,
+            aabb_list_buffer,
+        );
     }
 
     pub fn recompile_shaders(&mut self) {

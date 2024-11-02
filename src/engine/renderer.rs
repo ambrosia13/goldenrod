@@ -1,7 +1,15 @@
-use crate::renderer::{buffers::{AabbListBuffer, PlaneListBuffer, ScreenBuffer, SphereListBuffer}, final_pass::FinalRenderContext, raytrace::RaytraceRenderContext, screen_quad::ScreenQuad};
+use winit::keyboard::KeyCode;
+
+use crate::renderer::{
+    buffers::{AabbListBuffer, PlaneListBuffer, ScreenBuffer, SphereListBuffer},
+    final_pass::FinalRenderContext,
+    raytrace::RaytraceRenderContext,
+    screen_quad::ScreenQuad,
+};
 
 use super::{engine_state::EngineState, render_state::RenderState};
 
+pub const RECOMPILE_SHADERS_KEY: KeyCode = KeyCode::KeyR;
 
 pub struct Renderer<'a> {
     pub raytrace_render_context: RaytraceRenderContext<'a>,
@@ -60,11 +68,9 @@ impl<'a> Renderer<'a> {
         if self.object_buffer_version != engine_state.object_list.version() {
             log::info!("Updating object buffers");
 
-            #[rustfmt::skip]
-            let update_object_bindings = 
-                self.sphere_list_buffer.update(&engine_state.object_list) | 
-                self.plane_list_buffer.update(&engine_state.object_list) | 
-                self.aabb_list_buffer.update(&engine_state.object_list);
+            let update_object_bindings = self.sphere_list_buffer.update(&engine_state.object_list)
+                | self.plane_list_buffer.update(&engine_state.object_list)
+                | self.aabb_list_buffer.update(&engine_state.object_list);
 
             // if updating the object buffers caused a reallocation, update the bindings so the raytracer
             // has access to the new buffers
@@ -81,19 +87,27 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    pub fn update(&mut self, render_state: &RenderState, engine_state: &EngineState, encoder: &mut wgpu::CommandEncoder, surface_texture: &wgpu::SurfaceTexture) {
+    pub fn update(
+        &mut self,
+        render_state: &RenderState,
+        engine_state: &EngineState,
+        encoder: &mut wgpu::CommandEncoder,
+        surface_texture: &wgpu::SurfaceTexture,
+    ) {
+        if engine_state.input.keys.just_pressed(RECOMPILE_SHADERS_KEY) {
+            self.raytrace_render_context.recompile_shaders();
+            self.final_render_context
+                .recompile_shaders(&self.screen_quad);
+        }
+
         self.update_object_buffers(engine_state);
 
-        self
-            .screen_buffer
+        self.screen_buffer
             .update(render_state, &engine_state.camera);
 
-            self.raytrace_render_context.draw(encoder);
-            self.final_render_context.draw(
-            encoder,
-            surface_texture,
-            &self.screen_quad,
-        );
+        self.raytrace_render_context.draw(encoder);
 
+        self.final_render_context
+            .draw(encoder, surface_texture, &self.screen_quad);
     }
 }

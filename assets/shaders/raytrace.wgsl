@@ -78,6 +78,22 @@ fn reflectance(cos_theta: f32, ior: f32) -> f32 {
     return r0 + (1.0 - r0) * pow(1.0 - cos_theta, 5.0);
 }
 
+fn ggx_normal(normal: vec3<f32>, roughness: f32) -> vec3<f32> {
+    let r1 = next_f32();
+    let r2 = next_f32();
+
+    let theta = acos(sqrt(r1));
+    let phi = 2.0 * PI * r2;
+
+    let x = sin(theta) * cos(phi);
+    let y = sin(theta) * sin(phi);
+    let z = cos(theta);
+
+    let rough_normal = vec3(x, y, z);
+
+    return mix(normal, normalize(tbn_matrix(normal) * rough_normal), roughness);
+}
+
 struct MaterialHitResult {
     brdf: vec3<f32>,
     next_ray: Ray,
@@ -86,21 +102,25 @@ struct MaterialHitResult {
 fn material_hit_result(hit: Hit, ray: Ray, stack: ptr<function, Stack>) -> MaterialHitResult {
     if hit.material.ty == MATERIAL_LAMBERTIAN {
         let brdf = hit.material.albedo / PI;
-        let next_ray = Ray(hit.position + hit.normal * 0.0001, generate_cosine_vector(hit.normal));
+        let next_ray = Ray(hit.position + hit.normal * 0.0001, ggx_normal(hit.normal, 1.0));
 
         return MaterialHitResult(brdf, next_ray);
     } else if hit.material.ty == MATERIAL_METAL {
+        let rough_normal = ggx_normal(hit.normal, hit.material.roughness);
+
         let brdf = hit.material.albedo;
         
-        let reflect_dir = reflect(ray.dir, hit.normal);
+        let reflect_dir = reflect(ray.dir, rough_normal);
         let next_ray = Ray(
             hit.position + hit.normal * 0.0001, 
-            mix(reflect_dir, generate_cosine_vector(reflect_dir), hit.material.roughness)
+            reflect_dir
         );
 
         return MaterialHitResult(brdf, next_ray);
     } else if hit.material.ty == MATERIAL_DIELECTRIC {
-        let cos_theta = dot(-ray.dir, hit.normal);
+        let rough_normal = ggx_normal(hit.normal, hit.material.roughness);
+
+        let cos_theta = dot(-ray.dir, rough_normal);
         let sin_theta = sqrt(1.0 - cos_theta * cos_theta);
 
         let previous_ior = top_of_stack_or(stack, IOR_AIR);
@@ -123,8 +143,8 @@ fn material_hit_result(hit: Hit, ray: Ray, stack: ptr<function, Stack>) -> Mater
         if cannot_refract || reflectance(cos_theta, ior) > next_f32() {
             brdf = vec3(1.0);
             
-            dir = reflect(ray.dir, hit.normal);
-            dir = mix(dir, generate_cosine_vector(hit.normal), hit.material.roughness);
+            dir = reflect(ray.dir, rough_normal);
+            //dir = mix(dir, generate_cosine_vector(hit.normal), hit.material.roughness);
 
             pos += hit.normal * 0.0001;
         } else {
@@ -139,8 +159,8 @@ fn material_hit_result(hit: Hit, ray: Ray, stack: ptr<function, Stack>) -> Mater
 
             brdf = hit.material.albedo;
 
-            dir = refract(ray.dir, hit.normal, ior);
-            dir = normalize(dir + generate_unit_vector() * hit.material.roughness);
+            dir = refract(ray.dir, rough_normal, ior);
+            //dir = normalize(dir + generate_unit_vector() * hit.material.roughness);
 
             pos -= hit.normal * 0.0001;
         }

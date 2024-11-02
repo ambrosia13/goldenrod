@@ -111,13 +111,25 @@ impl ObjectList {
 
         self.push_plane(Plane::new(
             Vec3::Y,
-            Vec3::ZERO,
+            Vec3::ZERO - PAD_THICKNESS * 2.5,
             Material {
                 ty: MaterialType::Lambertian,
                 albedo: Vec3::ONE,
                 emission: Vec3::ZERO,
                 roughness: 0.0,
                 ior: 0.0,
+            },
+        ));
+
+        self.push_plane(Plane::new(
+            Vec3::Y,
+            Vec3::ZERO,
+            Material {
+                ty: MaterialType::Dielectric,
+                albedo: Vec3::ONE,
+                emission: Vec3::ZERO,
+                roughness: 0.1,
+                ior: 1.05,
             },
         ));
 
@@ -132,11 +144,15 @@ impl ObjectList {
                 let max_offset = region_size as f32 / 2.0 * 0.8;
                 let min_radius = region_size as f32 / 2.0 * 0.2;
 
-                let offset = rand::thread_rng().gen_range(-max_offset..=max_offset);
+                let offset_x = rand::thread_rng().gen_range(-max_offset..=max_offset);
+                let offset_z = rand::thread_rng().gen_range(-max_offset..=max_offset);
 
                 let rand_radius = || {
                     rand::thread_rng()
-                        .gen_range(min_radius..=(max_offset - offset.abs() + min_radius))
+                        .gen_range(
+                            min_radius
+                                ..=(max_offset - offset_x.abs().max(offset_z.abs()) + min_radius),
+                        )
                         .sqrt()
                 };
 
@@ -146,7 +162,7 @@ impl ObjectList {
 
                         self.push_sphere(
                             Sphere::new(
-                                Vec3::new(x + offset, radius, z + offset),
+                                Vec3::new(x + offset_x, radius, z + offset_z),
                                 radius,
                                 Material::random(),
                             )
@@ -160,11 +176,11 @@ impl ObjectList {
 
                         self.push_aabb(
                             Aabb::new(
-                                Vec3::new(x + offset - radius_x, 0.0, z + offset - radius_z),
+                                Vec3::new(x + offset_x - radius_x, 0.0, z + offset_z - radius_z),
                                 Vec3::new(
-                                    x + offset + radius_x,
+                                    x + offset_x + radius_x,
                                     2.0 * radius_y,
-                                    z + offset + radius_z,
+                                    z + offset_z + radius_z,
                                 ),
                                 Material::random(),
                             )

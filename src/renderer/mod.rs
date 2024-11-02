@@ -1,3 +1,4 @@
+pub mod bloom;
 pub mod buffers;
 pub mod final_pass;
 pub mod raytrace;

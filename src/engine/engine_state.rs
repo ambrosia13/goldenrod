@@ -17,14 +17,7 @@ impl EngineState {
         let input = Input::new();
         let time = Time::new();
 
-        let camera = Camera::new(
-            Vec3::ZERO,
-            Vec3::NEG_Z,
-            45.0,
-            render_state.size,
-            0.005,
-            500.0,
-        );
+        let camera = Camera::new(Vec3::ZERO, Vec3::NEG_Z, 45.0, render_state.size, 1.0, 100.0);
 
         let mut object_list = ObjectList::new();
         object_list.random_scene();
