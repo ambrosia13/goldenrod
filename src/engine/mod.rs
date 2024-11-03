@@ -112,10 +112,7 @@ impl<'a> ApplicationHandler for App<'a> {
                 engine_state.camera.reconfigure_aspect(size);
                 render_state.resize(size);
 
-                renderer.raytrace_render_context.resize(size);
-                renderer
-                    .final_render_context
-                    .resize(&renderer.raytrace_render_context.color_texture);
+                renderer.resize(size);
             }
             WindowEvent::RedrawRequested => {
                 // We want another frame after this one

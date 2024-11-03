@@ -40,7 +40,7 @@ var color_texture: texture_storage_2d<rgba32float, write>;
 var color_texture_copy: texture_storage_2d<rgba32float, read>;
 
 fn sky(ray: Ray) -> vec3<f32> {
-    return vec3(0.1, 0.3, 0.95);
+    return 0.001 * vec3(0.1, 0.3, 0.95);
 }
 
 fn raytrace(ray: Ray) -> Hit {

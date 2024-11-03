@@ -1,6 +1,7 @@
-use winit::keyboard::KeyCode;
+use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
 use crate::renderer::{
+    bloom::BloomRenderContext,
     buffers::{AabbListBuffer, PlaneListBuffer, ScreenBuffer, SphereListBuffer},
     final_pass::FinalRenderContext,
     raytrace::RaytraceRenderContext,
@@ -13,6 +14,7 @@ pub const RECOMPILE_SHADERS_KEY: KeyCode = KeyCode::KeyR;
 
 pub struct Renderer<'a> {
     pub raytrace_render_context: RaytraceRenderContext<'a>,
+    pub bloom_render_context: BloomRenderContext<'a>,
     pub final_render_context: FinalRenderContext,
 
     pub screen_quad: ScreenQuad,
@@ -44,15 +46,23 @@ impl<'a> Renderer<'a> {
             &aabb_list_buffer,
         );
 
+        let bloom_render_context = BloomRenderContext::new(
+            render_state,
+            &screen_quad,
+            &raytrace_render_context.color_texture,
+            &screen_buffer,
+        );
+
         let final_render_context = FinalRenderContext::new(
             render_state,
-            &raytrace_render_context.color_texture,
+            &bloom_render_context.bloom_texture,
             &screen_buffer,
             &screen_quad,
         );
 
         Self {
             raytrace_render_context,
+            bloom_render_context,
             final_render_context,
             screen_quad,
             screen_buffer,
@@ -87,6 +97,17 @@ impl<'a> Renderer<'a> {
         }
     }
 
+    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        self.raytrace_render_context.resize(new_size);
+        self.bloom_render_context.resize(
+            new_size,
+            &self.raytrace_render_context.color_texture,
+            &self.screen_buffer,
+        );
+        self.final_render_context
+            .resize(&self.bloom_render_context.bloom_texture);
+    }
+
     pub fn update(
         &mut self,
         render_state: &RenderState,
@@ -96,8 +117,8 @@ impl<'a> Renderer<'a> {
     ) {
         if engine_state.input.keys.just_pressed(RECOMPILE_SHADERS_KEY) {
             self.raytrace_render_context.recompile_shaders();
-            self.final_render_context
-                .recompile_shaders(&self.screen_quad);
+            self.bloom_render_context.recompile_shaders();
+            self.final_render_context.recompile_shaders();
         }
 
         self.update_object_buffers(engine_state);
@@ -106,8 +127,7 @@ impl<'a> Renderer<'a> {
             .update(render_state, &engine_state.camera);
 
         self.raytrace_render_context.draw(encoder);
-
-        self.final_render_context
-            .draw(encoder, surface_texture, &self.screen_quad);
+        self.bloom_render_context.draw(encoder);
+        self.final_render_context.draw(encoder, surface_texture);
     }
 }

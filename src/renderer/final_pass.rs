@@ -23,6 +23,7 @@ pub struct FinalRenderContext {
     pub surface_format: wgpu::TextureFormat,
 
     gpu_state: GpuState,
+    screen_quad: ScreenQuad,
 }
 
 impl FinalRenderContext {
@@ -94,16 +95,17 @@ impl FinalRenderContext {
             texture_binding,
             surface_format: render_state.config.format,
             gpu_state: render_state.get_gpu_state(),
+            screen_quad: screen_quad.clone(),
         }
     }
 
-    fn recreate_pipeline(&mut self, screen_quad: &ScreenQuad) {
+    fn recreate_pipeline(&mut self) {
         self.pipeline = self.gpu_state.create_render_pipeline(
             "Final Pass Render Pipeline",
             WgpuRenderPipelineConfig {
                 layout: &self.pipeline_layout,
                 vertex_buffer_layouts: &[],
-                vertex: &screen_quad.vertex_shader,
+                vertex: &self.screen_quad.vertex_shader,
                 fragment: &self.shader,
                 targets: &[Some(wgpu::ColorTargetState {
                     format: self.surface_format,
@@ -140,17 +142,12 @@ impl FinalRenderContext {
         self.update_input_texture(input_texture);
     }
 
-    pub fn recompile_shaders(&mut self, screen_quad: &ScreenQuad) {
+    pub fn recompile_shaders(&mut self) {
         self.shader.recreate();
-        self.recreate_pipeline(screen_quad);
+        self.recreate_pipeline();
     }
 
-    pub fn draw(
-        &self,
-        encoder: &mut wgpu::CommandEncoder,
-        surface_texture: &wgpu::SurfaceTexture,
-        screen_quad: &ScreenQuad,
-    ) {
+    pub fn draw(&self, encoder: &mut wgpu::CommandEncoder, surface_texture: &wgpu::SurfaceTexture) {
         let view = surface_texture.texture.create_view(&Default::default());
 
         let render_pass = WgpuRenderPass {
@@ -158,7 +155,7 @@ impl FinalRenderContext {
             color_attachments: &[Some(&view)],
             pipeline: &self.pipeline,
             bindings: &[
-                &screen_quad.vertex_index_binding,
+                &self.screen_quad.vertex_index_binding,
                 &self.screen_binding,
                 &self.texture_binding,
             ],

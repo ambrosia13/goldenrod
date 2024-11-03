@@ -92,8 +92,8 @@ pub struct WgpuTexture<'a> {
 
     pub(in crate::engine::render_state_ext) ty: WgpuTextureType,
 
-    pub(in crate::engine::render_state_ext) texture_descriptor: wgpu::TextureDescriptor<'a>,
-    pub(in crate::engine::render_state_ext) sampler_descriptor: wgpu::SamplerDescriptor<'a>,
+    pub texture_descriptor: wgpu::TextureDescriptor<'a>,
+    pub sampler_descriptor: wgpu::SamplerDescriptor<'a>,
 
     pub(in crate::engine::render_state_ext) texture: wgpu::Texture,
     pub(in crate::engine::render_state_ext) sampler: wgpu::Sampler,
@@ -151,7 +151,7 @@ impl<'a> WgpuTexture<'a> {
         self.recreate();
     }
 
-    fn recreate(&mut self) {
+    pub fn recreate(&mut self) {
         self.texture = self
             .gpu_state
             .device

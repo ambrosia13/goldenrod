@@ -37,7 +37,7 @@ pub struct WgpuRenderPass<'a> {
     pub color_attachments: &'a [Option<&'a wgpu::TextureView>],
     pub pipeline: &'a wgpu::RenderPipeline,
     pub bindings: &'a [&'a WgpuBinding],
-    pub push_constants: Option<Std430Bytes>,
+    pub push_constants: Option<Vec<(wgpu::ShaderStages, Std430Bytes)>>,
 }
 
 impl<'a> WgpuRenderPass<'a> {
@@ -70,7 +70,9 @@ impl<'a> WgpuRenderPass<'a> {
         }
 
         if let Some(push_constants) = self.push_constants {
-            render_pass.set_push_constants(wgpu::ShaderStages::all(), 0, push_constants.as_slice());
+            for (stage, data) in push_constants {
+                render_pass.set_push_constants(stage, 0, data.as_slice());
+            }
         }
 
         render_pass.draw(0..6, 0..1);

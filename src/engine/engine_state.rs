@@ -1,8 +1,11 @@
 use glam::Vec3;
+use winit::keyboard::KeyCode;
 
 use crate::state::{camera::Camera, object::ObjectList};
 
 use super::{input::Input, render_state::RenderState, time::Time};
+
+pub const RANDOM_SCENE_KEY: KeyCode = KeyCode::KeyK;
 
 pub struct EngineState {
     pub input: Input,
@@ -31,6 +34,10 @@ impl EngineState {
     }
 
     pub fn update(&mut self) {
+        if self.input.keys.just_pressed(RANDOM_SCENE_KEY) {
+            self.object_list.random_scene();
+        }
+
         self.camera.update_position(&self.input, &self.time);
     }
 

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use glam::Vec2;
 use gpu_bytes::Std430Bytes;
 use gpu_bytes_derive::{AsStd140, AsStd430};
@@ -58,12 +60,13 @@ impl ScreenVertex {
     }
 }
 
+#[derive(Clone)]
 pub struct ScreenQuad {
-    pub vertex_storage_buffer: WgpuBuffer,
-    pub index_storage_buffer: WgpuBuffer,
+    pub vertex_storage_buffer: Arc<WgpuBuffer>,
+    pub index_storage_buffer: Arc<WgpuBuffer>,
 
-    pub vertex_index_binding: WgpuBinding,
-    pub vertex_shader: WgpuShader,
+    pub vertex_index_binding: Arc<WgpuBinding>,
+    pub vertex_shader: Arc<WgpuShader>,
 }
 
 impl ScreenQuad {
@@ -106,6 +109,11 @@ impl ScreenQuad {
         ]);
 
         let vertex_shader = render_state.create_shader("assets/shaders/frame_vertex.wgsl");
+
+        let vertex_storage_buffer = Arc::new(vertex_storage_buffer);
+        let index_storage_buffer = Arc::new(index_storage_buffer);
+        let vertex_index_binding = Arc::new(vertex_index_binding);
+        let vertex_shader = Arc::new(vertex_shader);
 
         Self {
             vertex_storage_buffer,

@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use super::shader::WgpuShader;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct WgpuPushConstantConfig {
     pub vertex: Option<Range<u32>>,
     pub fragment: Option<Range<u32>>,
