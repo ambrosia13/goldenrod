@@ -25,6 +25,7 @@ pub struct RaytraceRenderContext<'a> {
 
     pub screen_binding: WgpuBinding,
     pub object_binding: WgpuBinding,
+    pub lut_binding: WgpuBinding,
     pub texture_binding: WgpuBinding,
 
     gpu_state: GpuState,
@@ -72,6 +73,86 @@ impl<'a> RaytraceRenderContext<'a> {
             },
         );
 
+        let bytes = std::fs::read(
+            std::env::current_dir()
+                .unwrap()
+                .join("assets/textures/lut/wavelength_to_xyz"),
+        )
+        .unwrap();
+
+        // divide the number of bytes by the bytes per pixel to get number of pixels
+        let lut_size = bytes.len() as u32 / (std::mem::size_of::<f32>() as u32 * 4);
+
+        let wavelength_to_xyz_lut = gpu_state.create_texture(
+            "Wavelength to XYZ LUT",
+            WgpuTextureConfig {
+                ty: WgpuTextureType::Texture1d,
+                format: wgpu::TextureFormat::Rgba32Float,
+                width: lut_size,
+                height: 1,
+                depth: 1,
+                mips: 1,
+                address_mode: wgpu::AddressMode::ClampToEdge,
+                filter_mode: wgpu::FilterMode::Linear,
+                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
+            },
+        );
+
+        gpu_state.queue.write_texture(
+            wavelength_to_xyz_lut.texture().as_image_copy(),
+            &bytes,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(bytes.len() as u32),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: lut_size,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        let bytes = std::fs::read(
+            std::env::current_dir()
+                .unwrap()
+                .join("assets/textures/lut/rgb_to_spectral_intensity"),
+        )
+        .unwrap();
+
+        // divide the number of bytes by the bytes per pixel to get number of pixels
+        let lut_size = bytes.len() as u32 / (std::mem::size_of::<f32>() as u32 * 4);
+
+        let rgb_to_spectral_intensity_lut = gpu_state.create_texture(
+            "RGB to Spectral Intensity",
+            WgpuTextureConfig {
+                ty: WgpuTextureType::Texture1d,
+                format: wgpu::TextureFormat::Rgba32Float,
+                width: lut_size,
+                height: 1,
+                depth: 1,
+                mips: 1,
+                address_mode: wgpu::AddressMode::ClampToEdge,
+                filter_mode: wgpu::FilterMode::Linear,
+                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
+            },
+        );
+
+        gpu_state.queue.write_texture(
+            rgb_to_spectral_intensity_lut.texture().as_image_copy(),
+            &bytes,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(bytes.len() as u32),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: lut_size,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+
         let screen_binding = gpu_state.create_binding(&[WgpuBindingEntry {
             visibility: wgpu::ShaderStages::COMPUTE,
             binding_data: WgpuBindingData::Buffer {
@@ -88,6 +169,27 @@ impl<'a> RaytraceRenderContext<'a> {
             aabb_list_buffer,
         );
 
+        let lut_binding = gpu_state.create_binding(&[
+            WgpuBindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: WgpuBindingData::TextureStorage {
+                    access: wgpu::StorageTextureAccess::ReadOnly,
+                    texture_view: &wavelength_to_xyz_lut.view(0..1, 0..1),
+                    texture: &wavelength_to_xyz_lut,
+                },
+                count: None,
+            },
+            WgpuBindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: WgpuBindingData::TextureStorage {
+                    access: wgpu::StorageTextureAccess::ReadOnly,
+                    texture_view: &rgb_to_spectral_intensity_lut.view(0..1, 0..1),
+                    texture: &rgb_to_spectral_intensity_lut,
+                },
+                count: None,
+            },
+        ]);
+
         let texture_binding =
             Self::create_texture_binding(&gpu_state, &color_texture, &color_texture_copy);
 
@@ -97,6 +199,7 @@ impl<'a> RaytraceRenderContext<'a> {
             bind_group_layouts: &[
                 screen_binding.bind_group_layout(),
                 object_binding.bind_group_layout(),
+                lut_binding.bind_group_layout(),
                 texture_binding.bind_group_layout(),
             ],
             push_constant_config: WgpuPushConstantConfig::default(),
@@ -118,6 +221,7 @@ impl<'a> RaytraceRenderContext<'a> {
             pipeline,
             screen_binding,
             object_binding,
+            lut_binding,
             texture_binding,
             gpu_state: render_state.get_gpu_state(),
         }
@@ -266,6 +370,7 @@ impl<'a> RaytraceRenderContext<'a> {
             bindings: &[
                 &self.screen_binding,
                 &self.object_binding,
+                &self.lut_binding,
                 &self.texture_binding,
             ],
             push_constants: None,
