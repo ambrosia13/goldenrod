@@ -73,85 +73,7 @@ impl<'a> RaytraceRenderContext<'a> {
             },
         );
 
-        let bytes = std::fs::read(
-            std::env::current_dir()
-                .unwrap()
-                .join("assets/textures/lut/wavelength_to_xyz"),
-        )
-        .unwrap();
-
-        // divide the number of bytes by the bytes per pixel to get number of pixels
-        let lut_size = bytes.len() as u32 / (std::mem::size_of::<f32>() as u32 * 4);
-
-        let wavelength_to_xyz_lut = gpu_state.create_texture(
-            "Wavelength to XYZ LUT",
-            WgpuTextureConfig {
-                ty: WgpuTextureType::Texture1d,
-                format: wgpu::TextureFormat::Rgba32Float,
-                width: lut_size,
-                height: 1,
-                depth: 1,
-                mips: 1,
-                address_mode: wgpu::AddressMode::ClampToEdge,
-                filter_mode: wgpu::FilterMode::Linear,
-                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
-            },
-        );
-
-        gpu_state.queue.write_texture(
-            wavelength_to_xyz_lut.texture().as_image_copy(),
-            &bytes,
-            wgpu::ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(bytes.len() as u32),
-                rows_per_image: None,
-            },
-            wgpu::Extent3d {
-                width: lut_size,
-                height: 1,
-                depth_or_array_layers: 1,
-            },
-        );
-
-        let bytes = std::fs::read(
-            std::env::current_dir()
-                .unwrap()
-                .join("assets/textures/lut/rgb_to_spectral_intensity"),
-        )
-        .unwrap();
-
-        // divide the number of bytes by the bytes per pixel to get number of pixels
-        let lut_size = bytes.len() as u32 / (std::mem::size_of::<f32>() as u32 * 4);
-
-        let rgb_to_spectral_intensity_lut = gpu_state.create_texture(
-            "RGB to Spectral Intensity",
-            WgpuTextureConfig {
-                ty: WgpuTextureType::Texture1d,
-                format: wgpu::TextureFormat::Rgba32Float,
-                width: lut_size,
-                height: 1,
-                depth: 1,
-                mips: 1,
-                address_mode: wgpu::AddressMode::ClampToEdge,
-                filter_mode: wgpu::FilterMode::Linear,
-                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
-            },
-        );
-
-        gpu_state.queue.write_texture(
-            rgb_to_spectral_intensity_lut.texture().as_image_copy(),
-            &bytes,
-            wgpu::ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(bytes.len() as u32),
-                rows_per_image: None,
-            },
-            wgpu::Extent3d {
-                width: lut_size,
-                height: 1,
-                depth_or_array_layers: 1,
-            },
-        );
+        let (wavelength_to_xyz_lut, rgb_to_spectral_intensity_lut) = Self::load_luts(&gpu_state);
 
         let screen_binding = gpu_state.create_binding(&[WgpuBindingEntry {
             visibility: wgpu::ShaderStages::COMPUTE,
@@ -225,6 +147,101 @@ impl<'a> RaytraceRenderContext<'a> {
             texture_binding,
             gpu_state: render_state.get_gpu_state(),
         }
+    }
+
+    pub fn load_luts(gpu_state: &GpuState) -> (WgpuTexture, WgpuTexture) {
+        let wavelength_to_xyz_path = std::env::current_dir()
+            .unwrap()
+            .join("assets/textures/lut/wavelength_to_xyz");
+
+        let wavelength_to_xyz_bytes = std::fs::read(&wavelength_to_xyz_path).unwrap_or_else(|_| {
+            panic!(
+                "Couldn't read texture file; expected at {:?}",
+                wavelength_to_xyz_path
+            );
+        });
+
+        let rgb_to_spectral_intensity_path = std::env::current_dir()
+            .unwrap()
+            .join("assets/textures/lut/rgb_to_spectral_intensity");
+
+        let rgb_to_spectral_intensity_bytes = std::fs::read(&rgb_to_spectral_intensity_path)
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Couldn't read texture file; expected at {:?}",
+                    rgb_to_spectral_intensity_path
+                );
+            });
+
+        // divide the number of bytes by the bytes per pixel to get number of pixels
+        let lut_size =
+            wavelength_to_xyz_bytes.len() as u32 / (std::mem::size_of::<f32>() as u32 * 4);
+
+        let wavelength_to_xyz_lut = gpu_state.create_texture(
+            "Wavelength to XYZ LUT",
+            WgpuTextureConfig {
+                ty: WgpuTextureType::Texture1d,
+                format: wgpu::TextureFormat::Rgba32Float,
+                width: lut_size,
+                height: 1,
+                depth: 1,
+                mips: 1,
+                address_mode: wgpu::AddressMode::ClampToEdge,
+                filter_mode: wgpu::FilterMode::Linear,
+                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
+            },
+        );
+
+        gpu_state.queue.write_texture(
+            wavelength_to_xyz_lut.texture().as_image_copy(),
+            &wavelength_to_xyz_bytes,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(wavelength_to_xyz_bytes.len() as u32),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: lut_size,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        // divide the number of bytes by the bytes per pixel to get number of pixels
+        let lut_size =
+            rgb_to_spectral_intensity_bytes.len() as u32 / (std::mem::size_of::<f32>() as u32 * 4);
+
+        let rgb_to_spectral_intensity_lut = gpu_state.create_texture(
+            "RGB to Spectral Intensity",
+            WgpuTextureConfig {
+                ty: WgpuTextureType::Texture1d,
+                format: wgpu::TextureFormat::Rgba32Float,
+                width: lut_size,
+                height: 1,
+                depth: 1,
+                mips: 1,
+                address_mode: wgpu::AddressMode::ClampToEdge,
+                filter_mode: wgpu::FilterMode::Linear,
+                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
+            },
+        );
+
+        gpu_state.queue.write_texture(
+            rgb_to_spectral_intensity_lut.texture().as_image_copy(),
+            &rgb_to_spectral_intensity_bytes,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(rgb_to_spectral_intensity_bytes.len() as u32),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: lut_size,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        (wavelength_to_xyz_lut, rgb_to_spectral_intensity_lut)
     }
 
     fn create_texture_binding(

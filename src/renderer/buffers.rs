@@ -203,7 +203,7 @@ impl UpdateFromObjectList for SphereListUniform {
         self.num_spheres = object_list.spheres().len() as u32;
 
         self.list = Vec::with_capacity(self.list.capacity());
-        self.list.extend_from_slice(&object_list.spheres());
+        self.list.extend_from_slice(object_list.spheres());
     }
 }
 
@@ -227,7 +227,7 @@ impl UpdateFromObjectList for PlaneListUniform {
         self.num_planes = object_list.planes().len() as u32;
 
         self.list = Vec::with_capacity(self.list.capacity());
-        self.list.extend_from_slice(&object_list.planes());
+        self.list.extend_from_slice(object_list.planes());
     }
 }
 
@@ -251,7 +251,7 @@ impl UpdateFromObjectList for AabbListUniform {
         self.num_aabbs = object_list.aabbs().len() as u32;
 
         self.list = Vec::with_capacity(self.list.capacity());
-        self.list.extend_from_slice(&object_list.aabbs());
+        self.list.extend_from_slice(object_list.aabbs());
     }
 }
 

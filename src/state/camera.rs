@@ -1,4 +1,4 @@
-use glam::{Mat3, Mat4, Quat, Vec3, Vec4};
+use glam::{Mat3, Mat4, Quat, Vec3};
 use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
 use crate::engine::{input::Input, time::Time};
@@ -17,13 +17,6 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
-        Vec4::new(1.0, 0.0, 0.0, 0.0),
-        Vec4::new(0.0, -1.0, 0.0, 0.0),
-        Vec4::new(0.0, 0.0, 1.0, 0.0),
-        Vec4::new(0.0, 0.0, 0.0, 1.0),
-    );
-
     pub fn new(
         position: Vec3,
         look_at: Vec3,
