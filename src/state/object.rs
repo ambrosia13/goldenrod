@@ -105,10 +105,45 @@ impl AsBoundingVolume for Aabb {
     }
 }
 
+#[derive(AsStd140, AsStd430, Default, Debug, Clone, Copy)]
+pub struct Triangle {
+    a: Vec3,
+    b: Vec3,
+    c: Vec3,
+    material: Material,
+}
+
+impl Triangle {
+    pub fn new(a: Vec3, b: Vec3, c: Vec3, material: Material) -> Self {
+        Self { a, b, c, material }
+    }
+
+    pub fn vertices(&self) -> [Vec3; 3] {
+        [self.a, self.b, self.c]
+    }
+}
+
+impl AsBoundingVolume for Triangle {
+    fn bounding_volume(&self) -> BoundingVolume {
+        let mut bounds = BoundingVolume {
+            min: self.a.min(self.b.min(self.c)),
+            max: self.a.max(self.b.max(self.c)),
+        };
+
+        // if the triangle forms a flat bounding box, pad it a little bit
+        if bounds.min.cmpeq(bounds.max).any() {
+            bounds.max += 0.001;
+        }
+
+        bounds
+    }
+}
+
 pub struct ObjectList {
     spheres: Vec<Sphere>,
     planes: Vec<Plane>,
     aabbs: Vec<Aabb>,
+    triangles: Vec<Triangle>,
 
     version: u32,
 }
@@ -119,6 +154,7 @@ impl ObjectList {
             spheres: Vec::new(),
             planes: Vec::new(),
             aabbs: Vec::new(),
+            triangles: Vec::new(),
             version: 0,
         }
     }
@@ -288,6 +324,11 @@ impl ObjectList {
         self.aabbs.push(aabb);
     }
 
+    pub fn push_triangle(&mut self, triangle: Triangle) {
+        self.version += 1;
+        self.triangles.push(triangle);
+    }
+
     pub fn spheres(&self) -> &[Sphere] {
         &self.spheres
     }
@@ -303,6 +344,15 @@ impl ObjectList {
 
     pub fn aabbs(&self) -> &[Aabb] {
         &self.aabbs
+    }
+
+    pub fn triangles(&self) -> &[Triangle] {
+        &self.triangles
+    }
+
+    pub fn triangles_mut(&mut self) -> &mut [Triangle] {
+        self.version += 1;
+        &mut self.triangles
     }
 
     pub fn version(&self) -> u32 {

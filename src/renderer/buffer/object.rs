@@ -9,7 +9,7 @@ use crate::{
             RenderStateExt,
         },
     },
-    state::object::{Aabb, ObjectList, Plane, Sphere},
+    state::object::{Aabb, ObjectList, Plane, Sphere, Triangle},
 };
 
 use super::MIN_STORAGE_ARRAY_CAPACITY;
@@ -152,6 +152,31 @@ impl Default for AabbListUniform {
     }
 }
 
+#[derive(AsStd140, AsStd430)]
+pub struct TriangleListUniform {
+    pub num_triangles: u32,
+    pub list: Vec<Triangle>,
+}
+
+impl UpdateFromObjectList for TriangleListUniform {
+    fn update(&mut self, object_list: &ObjectList) {
+        self.num_triangles = object_list.triangles().len() as u32;
+
+        self.list = Vec::with_capacity(self.list.capacity());
+        self.list.extend_from_slice(object_list.triangles());
+    }
+}
+
+impl Default for TriangleListUniform {
+    fn default() -> Self {
+        Self {
+            num_triangles: 0,
+            list: Vec::with_capacity(MIN_STORAGE_ARRAY_CAPACITY),
+        }
+    }
+}
+
 pub type SphereListBuffer = ObjectListBuffer<SphereListUniform>;
 pub type PlaneListBuffer = ObjectListBuffer<PlaneListUniform>;
 pub type AabbListBuffer = ObjectListBuffer<AabbListUniform>;
+pub type TriangleListBuffer = ObjectListBuffer<TriangleListUniform>;

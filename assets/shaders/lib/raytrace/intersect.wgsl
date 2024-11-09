@@ -42,6 +42,13 @@ struct Aabb {
     material: Material,
 }
 
+struct Triangle {
+    a: vec3<f32>,
+    b: vec3<f32>,
+    c: vec3<f32>,
+    material: Material,
+}
+
 fn merge_hit(a: Hit, b: Hit) -> Hit {
     var hit: Hit;
 

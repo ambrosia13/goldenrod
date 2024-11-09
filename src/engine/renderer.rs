@@ -4,7 +4,7 @@ use crate::renderer::{
     bloom::BloomRenderContext,
     buffer::{
         bvh::BvhBuffer,
-        object::{AabbListBuffer, PlaneListBuffer, SphereListBuffer},
+        object::{AabbListBuffer, PlaneListBuffer, SphereListBuffer, TriangleListBuffer},
         screen::ScreenBuffer,
     },
     final_pass::FinalRenderContext,
@@ -29,6 +29,7 @@ pub struct Renderer<'a> {
     pub sphere_list_buffer: SphereListBuffer,
     pub plane_list_buffer: PlaneListBuffer,
     pub aabb_list_buffer: AabbListBuffer,
+    pub triangle_list_buffer: TriangleListBuffer,
     pub bvh_buffer: BvhBuffer,
 }
 
@@ -40,6 +41,7 @@ impl<'a> Renderer<'a> {
         let sphere_list_buffer = SphereListBuffer::new("Sphere List Buffer", render_state);
         let plane_list_buffer = PlaneListBuffer::new("Plane List Buffer", render_state);
         let aabb_list_buffer = AabbListBuffer::new("AABB List Buffer", render_state);
+        let triangle_list_buffer = TriangleListBuffer::new("Triangle List Buffer", render_state);
 
         let bvh_buffer = BvhBuffer::new(render_state);
 
@@ -51,6 +53,7 @@ impl<'a> Renderer<'a> {
             &sphere_list_buffer,
             &plane_list_buffer,
             &aabb_list_buffer,
+            &triangle_list_buffer,
             &bvh_buffer,
         );
 
@@ -78,6 +81,7 @@ impl<'a> Renderer<'a> {
             sphere_list_buffer,
             plane_list_buffer,
             aabb_list_buffer,
+            triangle_list_buffer,
             bvh_buffer,
         }
     }
@@ -90,6 +94,7 @@ impl<'a> Renderer<'a> {
             let update_object_bindings = self.sphere_list_buffer.update(&engine_state.object_list)
                 | self.plane_list_buffer.update(&engine_state.object_list)
                 | self.aabb_list_buffer.update(&engine_state.object_list)
+                | self.triangle_list_buffer.update(&engine_state.object_list)
                 | self
                     .bvh_buffer
                     .update(&engine_state.bounding_volume_hierarchy);
@@ -101,6 +106,7 @@ impl<'a> Renderer<'a> {
                     &self.sphere_list_buffer,
                     &self.plane_list_buffer,
                     &self.aabb_list_buffer,
+                    &self.triangle_list_buffer,
                     &self.bvh_buffer,
                 );
             }

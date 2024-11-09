@@ -23,6 +23,11 @@ struct AabbListUniform {
     list: array<Aabb>,
 }
 
+struct TriangleListUniform {
+    num_triangles: u32,
+    list: array<Triangle>,
+}
+
 struct BvhUniform {
     num_nodes: u32,
     nodes: array<BvhNode>,
@@ -41,6 +46,9 @@ var<storage> planes: PlaneListUniform;
 var<storage> aabbs: AabbListUniform;
 
 @group(1) @binding(3)
+var<storage> triangles: TriangleListUniform;
+
+@group(1) @binding(4)
 var<storage> bvh: BvhUniform;
 
 @group(2) @binding(0)

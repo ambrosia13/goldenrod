@@ -15,7 +15,7 @@ use crate::engine::{
 
 use super::buffer::{
     bvh::BvhBuffer,
-    object::{AabbListBuffer, PlaneListBuffer, SphereListBuffer},
+    object::{AabbListBuffer, PlaneListBuffer, SphereListBuffer, TriangleListBuffer},
     screen::ScreenBuffer,
 };
 
@@ -44,6 +44,7 @@ impl<'a> RaytraceRenderContext<'a> {
         sphere_list_buffer: &SphereListBuffer,
         plane_list_buffer: &PlaneListBuffer,
         aabb_list_buffer: &AabbListBuffer,
+        triangle_list_buffer: &TriangleListBuffer,
         bvh_buffer: &BvhBuffer,
     ) -> Self {
         let gpu_state = render_state.get_gpu_state();
@@ -95,6 +96,7 @@ impl<'a> RaytraceRenderContext<'a> {
             sphere_list_buffer,
             plane_list_buffer,
             aabb_list_buffer,
+            triangle_list_buffer,
             bvh_buffer,
         );
 
@@ -313,6 +315,7 @@ impl<'a> RaytraceRenderContext<'a> {
         sphere_list_buffer: &SphereListBuffer,
         plane_list_buffer: &PlaneListBuffer,
         aabb_list_buffer: &AabbListBuffer,
+        triangle_list_buffer: &TriangleListBuffer,
         bvh_buffer: &BvhBuffer,
     ) -> WgpuBinding {
         gpu_state.create_binding(&[
@@ -337,6 +340,14 @@ impl<'a> RaytraceRenderContext<'a> {
                 binding_data: WgpuBindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &aabb_list_buffer.buffer,
+                },
+                count: None,
+            },
+            WgpuBindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: WgpuBindingData::Buffer {
+                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                    buffer: &triangle_list_buffer.buffer,
                 },
                 count: None,
             },
@@ -380,6 +391,7 @@ impl<'a> RaytraceRenderContext<'a> {
         sphere_list_buffer: &SphereListBuffer,
         plane_list_buffer: &PlaneListBuffer,
         aabb_list_buffer: &AabbListBuffer,
+        triangle_list_buffer: &TriangleListBuffer,
         bvh_buffer: &BvhBuffer,
     ) {
         self.object_binding = Self::create_object_binding(
@@ -387,6 +399,7 @@ impl<'a> RaytraceRenderContext<'a> {
             sphere_list_buffer,
             plane_list_buffer,
             aabb_list_buffer,
+            triangle_list_buffer,
             bvh_buffer,
         );
     }
@@ -405,12 +418,14 @@ impl<'a> RaytraceRenderContext<'a> {
         sphere_list_buffer: &SphereListBuffer,
         plane_list_buffer: &PlaneListBuffer,
         aabb_list_buffer: &AabbListBuffer,
+        triangle_list_buffer: &TriangleListBuffer,
         bvh_buffer: &BvhBuffer,
     ) {
         self.recreate_object_binding(
             sphere_list_buffer,
             plane_list_buffer,
             aabb_list_buffer,
+            triangle_list_buffer,
             bvh_buffer,
         );
     }
