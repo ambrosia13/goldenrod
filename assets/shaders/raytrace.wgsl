@@ -137,15 +137,19 @@ fn raytrace_bvh(ray: Ray) -> Hit {
         } else {
             // node has no children, trace objects directly
             for (var i = node.start_index; i < node.start_index + node.len; i++) {
-                let sphere = spheres.list[i];
+                let triangle = triangles.list[i];
 
-                let hit = ray_sphere_intersect(ray, sphere);
+                let hit = ray_triangle_intersect(ray, triangle);
                 closest_hit = merge_hit(closest_hit, hit);
             }
         }
     }
 
     return closest_hit;
+}
+
+fn raytrace_all(ray: Ray) -> Hit {
+    return merge_hit(raytrace(ray), raytrace_bvh(ray));
 }
 
 // Schlick approximation for reflectance
@@ -266,7 +270,7 @@ fn pathtrace(ray: Ray, wavelength: f32) -> vec3<f32> {
     }
 
     for (var i = 0; i < bounces; i++) {
-        let hit = raytrace_bvh(current_ray);
+        let hit = raytrace_all(current_ray);
 
         if !hit.success {
             // hit sky
@@ -339,6 +343,11 @@ fn compute(
     }
 
     color = mix(previous_color, color, 1.0 / (frame_age + 1.0));
+
+    // let hit = raytrace_bvh(ray);
+    // if hit.success {
+    //     color = hit.normal * 0.5 + 0.5;
+    // }
 
     textureStore(color_texture, global_id.xy, vec4(color, frame_age + 1.0));
 }

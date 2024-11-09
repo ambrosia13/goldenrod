@@ -92,9 +92,9 @@ pub fn load_triangles_from_gltf<P: AsRef<Path>>(
 
                 for chunk in indices.into_u32().collect::<Vec<_>>().chunks(3) {
                     triangles.push(Triangle::new(
-                        Vec3::from(positions[chunk[0] as usize]) + offset.x,
-                        Vec3::from(positions[chunk[1] as usize]) + offset.y,
-                        Vec3::from(positions[chunk[2] as usize]) + offset.z,
+                        Vec3::from(positions[chunk[0] as usize]) + offset,
+                        Vec3::from(positions[chunk[1] as usize]) + offset,
+                        Vec3::from(positions[chunk[2] as usize]) + offset,
                         material,
                     ));
                 }

@@ -171,3 +171,53 @@ fn ray_aabb_intersect(ray: Ray, aabb: Aabb) -> Hit {
 
     return hit;
 }
+
+fn ray_triangle_intersect(ray: Ray, triangle: Triangle) -> Hit {
+    var hit: Hit;
+    hit.material = triangle.material;
+
+    let edge1 = triangle.b - triangle.a;
+    let edge2 = triangle.c - triangle.a;
+
+    let h = cross(ray.dir, edge2);
+    let determinant = dot(h, edge1);
+    
+    if abs(determinant) < 1e-6 {
+        return hit;
+    }
+
+    let f = 1.0 / determinant;
+    let s = ray.pos - triangle.a;
+    let u = f * dot(s, h);
+
+    if u < 0.0 || u > 1.0 {
+        // outside triangle
+        return hit;
+    }
+
+    let q = cross(s, edge1);
+    let v = f * dot(ray.dir, q);
+
+    if v < 0.0 || u + v > 1.0 {
+        // outside triangle
+        return hit;
+    }
+
+    let t = f * dot(edge2, q);
+    if t < 1e-6 {
+        return hit;
+    }
+
+
+    hit.success = true;
+    hit.distance = t;
+    hit.position = ray.pos + t * ray.dir;
+    hit.normal = normalize(cross(edge1, edge2));
+
+    let dir_dot_normal = dot(ray.dir, hit.normal);
+
+    hit.front_face = dir_dot_normal < 0.0;
+    hit.normal *= -sign(dir_dot_normal);
+
+    return hit;
+}

@@ -36,7 +36,7 @@ impl EngineState {
 
         for triangle in util::gltf::load_triangles_from_gltf(
             "assets/meshes/suzanne",
-            Vec3::new(0.0, 10.0, 0.0),
+            Vec3::new(0.0, 4.0, 0.0),
             Material::random(),
         )
         .unwrap()
