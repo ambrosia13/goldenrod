@@ -14,7 +14,7 @@ use crate::engine::{
     },
 };
 
-use super::{buffers::ScreenBuffer, screen_quad::ScreenQuad};
+use super::{buffer::screen::ScreenBuffer, screen_quad::ScreenQuad};
 
 #[derive(AsStd430)]
 struct LodInfo {

@@ -1,6 +1,11 @@
-use std::ops::Range;
+use std::{fmt::Debug, ops::Range, path::Path};
 
-use crate::engine::render_state::{GpuState, RenderState};
+use crate::{
+    engine::render_state::{GpuState, RenderState},
+    util,
+};
+
+use super::RenderStateExt;
 
 #[derive(Debug, Clone, Copy)]
 pub enum WgpuTextureType {
@@ -102,30 +107,6 @@ pub struct WgpuTexture<'a> {
 }
 
 impl<'a> WgpuTexture<'a> {
-    pub(in crate::engine::render_state_ext) fn new(
-        render_state: &RenderState,
-        name: &'a str,
-        config: WgpuTextureConfig,
-    ) -> Self {
-        let ctx = render_state.get_gpu_state();
-
-        let texture_descriptor = config.texture_descriptor(name);
-        let sampler_descriptor = config.sampler_descriptor(name);
-
-        let texture = ctx.device.create_texture(&texture_descriptor);
-        let sampler = ctx.device.create_sampler(&sampler_descriptor);
-
-        Self {
-            name,
-            ty: config.ty,
-            texture_descriptor,
-            sampler_descriptor,
-            texture,
-            sampler,
-            gpu_state: ctx,
-        }
-    }
-
     pub fn resize(&mut self, new_width: u32, new_height: u32) {
         self.texture_descriptor.size.width = new_width;
         self.texture_descriptor.size.height = new_height;
@@ -190,4 +171,67 @@ impl<'a> WgpuTexture<'a> {
     pub fn view_dimension(&self) -> wgpu::TextureViewDimension {
         self.ty.view_dimension()
     }
+}
+
+pub fn create_cubemap_texture<'a, P: AsRef<Path> + Debug>(
+    gpu_state: &GpuState,
+    name: &'a str,
+    path: P,
+    size: u32,
+    format: wgpu::TextureFormat,
+    usage: wgpu::TextureUsages,
+) -> Result<WgpuTexture<'a>, std::io::Error> {
+    let parent_path = std::env::current_dir().unwrap();
+    let path = parent_path.join(&path);
+
+    let faces = ["px", "nx", "py", "ny", "pz", "nz"];
+    let paths = faces.map(|f| path.join(f));
+
+    let images: Result<Vec<Vec<u8>>, _> = paths.into_iter().map(std::fs::read).collect();
+    let images = images?;
+
+    let bytes_per_pixel = format.target_pixel_byte_cost().unwrap();
+
+    let texture = gpu_state.create_texture(
+        name,
+        WgpuTextureConfig {
+            ty: WgpuTextureType::TextureCube,
+            format,
+            width: size,
+            height: size,
+            depth: 6,
+            mips: 1,
+            address_mode: wgpu::AddressMode::ClampToEdge,
+            filter_mode: wgpu::FilterMode::Linear,
+            usage: usage | wgpu::TextureUsages::COPY_DST,
+        },
+    );
+
+    for (index, image) in images.iter().enumerate() {
+        gpu_state.queue.write_texture(
+            wgpu::ImageCopyTextureBase {
+                texture: texture.texture(),
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: 0,
+                    y: 0,
+                    z: index as u32,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            image,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(size * bytes_per_pixel),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: size,
+                height: size,
+                depth_or_array_layers: 1,
+            },
+        );
+    }
+
+    Ok(texture)
 }

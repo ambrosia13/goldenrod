@@ -2,7 +2,10 @@ use glam::Vec3;
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use rand::Rng;
 
-use super::material::{Material, MaterialType};
+use super::{
+    bvh::{AsBoundingVolume, BoundingVolume},
+    material::{Material, MaterialType},
+};
 
 const PAD_THICKNESS: f32 = 0.00025;
 
@@ -34,6 +37,15 @@ impl Sphere {
         Self {
             radius: self.radius - PAD_THICKNESS,
             ..self
+        }
+    }
+}
+
+impl AsBoundingVolume for Sphere {
+    fn bounding_volume(&self) -> BoundingVolume {
+        BoundingVolume {
+            min: self.center - self.radius,
+            max: self.center + self.radius,
         }
     }
 }
@@ -84,6 +96,15 @@ impl Aabb {
     }
 }
 
+impl AsBoundingVolume for Aabb {
+    fn bounding_volume(&self) -> BoundingVolume {
+        BoundingVolume {
+            min: self.min,
+            max: self.max,
+        }
+    }
+}
+
 pub struct ObjectList {
     spheres: Vec<Sphere>,
     planes: Vec<Plane>,
@@ -99,6 +120,65 @@ impl ObjectList {
             planes: Vec::new(),
             aabbs: Vec::new(),
             version: 0,
+        }
+    }
+
+    pub fn cubeception(&mut self, albedo: Vec3, position: Vec3, radius: f32, ior: f32, depth: u32) {
+        self.version += 1;
+
+        let material = Material {
+            albedo,
+            ty: MaterialType::Dielectric,
+            emission: Vec3::ZERO,
+            roughness: 0.0,
+            ior,
+        };
+
+        let mut radius = radius;
+
+        for i in 0..depth {
+            if i % 2 == 0 {
+                // AABB
+                self.push_aabb(Aabb {
+                    min: position - Vec3::splat(radius),
+                    max: position + Vec3::splat(radius),
+                    material,
+                });
+            } else {
+                // Sphere
+                self.push_sphere(Sphere {
+                    center: position,
+                    radius,
+                    material,
+                });
+
+                // calculate the radius of the next aabb
+                radius /= f32::sqrt(3.0);
+            }
+        }
+    }
+
+    pub fn random_spheres(&mut self, count: u32) {
+        self.version += 1;
+
+        self.spheres.clear();
+        self.planes.clear();
+        self.aabbs.clear();
+
+        let mut rng = rand::thread_rng();
+
+        let range = 20.0;
+
+        for i in 0..count {
+            let center = Vec3::new(
+                rng.gen_range(-range..range),
+                rng.gen_range(-range..range),
+                rng.gen_range(-(range * 0.25)..(range * 0.25)),
+            );
+
+            let radius = 10.0 * range / count as f32;
+
+            self.push_sphere(Sphere::new(center, radius, Material::random()));
         }
     }
 
@@ -133,7 +213,7 @@ impl ObjectList {
             },
         ));
 
-        let region_size = 5;
+        let region_size = 7;
         let regions_radius = 2;
 
         for x in -regions_radius..=regions_radius {
@@ -147,12 +227,12 @@ impl ObjectList {
                 let offset_x = rand::thread_rng().gen_range(-max_offset..=max_offset);
                 let offset_z = rand::thread_rng().gen_range(-max_offset..=max_offset);
 
+                let max_radius = max_offset - offset_x.abs().max(offset_z.abs());
+
                 let rand_radius = || {
                     rand::thread_rng()
-                        .gen_range(
-                            min_radius
-                                ..=(max_offset - offset_x.abs().max(offset_z.abs()) + min_radius),
-                        )
+                        .gen_range(0.0..=max_radius)
+                        .max(min_radius)
                         .sqrt()
                 };
 
@@ -210,6 +290,11 @@ impl ObjectList {
 
     pub fn spheres(&self) -> &[Sphere] {
         &self.spheres
+    }
+
+    pub fn spheres_mut(&mut self) -> &mut [Sphere] {
+        self.version += 1;
+        &mut self.spheres
     }
 
     pub fn planes(&self) -> &[Plane] {

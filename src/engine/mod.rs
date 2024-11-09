@@ -16,6 +16,7 @@ pub mod render_state;
 pub mod render_state_ext;
 pub mod renderer;
 pub mod time;
+pub mod ui;
 
 #[allow(clippy::large_enum_variant)]
 pub enum AppState<'a> {

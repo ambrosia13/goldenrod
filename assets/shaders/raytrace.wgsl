@@ -4,6 +4,7 @@
 #include assets/shaders/lib/raytrace/stack.wgsl
 #include assets/shaders/lib/raytrace/intersect.wgsl
 #include assets/shaders/lib/raytrace/spectrum.wgsl
+#include assets/shaders/lib/raytrace/bvh.wgsl
 
 const IOR_AIR: f32 = 1.000293;
 
@@ -22,6 +23,11 @@ struct AabbListUniform {
     list: array<Aabb>,
 }
 
+struct BvhUniform {
+    num_nodes: u32,
+    nodes: array<BvhNode>,
+}
+
 @group(0) @binding(0)
 var<storage> screen: ScreenUniform;
 
@@ -34,11 +40,20 @@ var<storage> planes: PlaneListUniform;
 @group(1) @binding(2)
 var<storage> aabbs: AabbListUniform;
 
+@group(1) @binding(3)
+var<storage> bvh: BvhUniform;
+
 @group(2) @binding(0)
 var wavelength_to_xyz_lut: texture_storage_1d<rgba32float, read>;
 
 @group(2) @binding(1)
 var rgb_to_spectral_intensity_lut: texture_storage_1d<rgba32float, read>;
+
+@group(2) @binding(2)
+var sky_cubemap_texture: texture_cube<f32>;
+
+@group(2) @binding(3)
+var sky_cubemap_sampler: sampler;
 
 @group(3) @binding(0)
 var color_texture: texture_storage_2d<rgba32float, write>;
@@ -47,19 +62,19 @@ var color_texture: texture_storage_2d<rgba32float, write>;
 var color_texture_copy: texture_storage_2d<rgba32float, read>;
 
 fn sky(ray: Ray) -> vec3<f32> {
-    // let factor = smoothstep(0.5, -0.75, ray.dir.y);
-    // return vec3(factor, factor, 1.0);
-
-    return vec3(0.1, 0.1, 1.0);
+    let color = textureSampleLevel(sky_cubemap_texture, sky_cubemap_sampler, ray.dir, 0.0).rgb;
+    return color * 0.5;
 }
 
 fn raytrace(ray: Ray) -> Hit {
     var closest_hit: Hit;
+    var samples = 0.0;
 
     for (var i = 0u; i < spheres.num_spheres; i++) {
         let sphere = spheres.list[i];
 
         let hit = ray_sphere_intersect(ray, sphere);
+        samples += 1.0;
         closest_hit = merge_hit(closest_hit, hit);
     }
 
@@ -67,6 +82,7 @@ fn raytrace(ray: Ray) -> Hit {
         let plane = planes.list[i];
 
         let hit = ray_plane_intersect(ray, plane);
+        samples += 1.0;
         closest_hit = merge_hit(closest_hit, hit);
     }
 
@@ -74,7 +90,51 @@ fn raytrace(ray: Ray) -> Hit {
         let aabb = aabbs.list[i];
 
         let hit = ray_aabb_intersect(ray, aabb);
+        samples += 1.0;
         closest_hit = merge_hit(closest_hit, hit);
+    }
+
+    closest_hit.distance = samples;
+
+    return closest_hit;
+}
+
+fn raytrace_bvh(ray: Ray) -> Hit {
+    var node_stack = new_node_stack();
+
+    let default_node = BvhNode(
+        BoundingVolume(vec3(0.0), vec3(0.0)),
+        0, 0, 0
+    );
+
+    var closest_hit: Hit;
+
+    push_to_node_stack(&node_stack, bvh.nodes[0]);
+
+    while !node_stack_is_empty(&node_stack) {
+        let node = top_of_node_stack_or(&node_stack, default_node);
+        pop_from_node_stack(&node_stack);
+
+        let node_hit = ray_bounding_volume_intersect(ray, node.bounds);
+
+        // Skip to the next node if we don't intersect the current node's bounding box
+        if !node_hit.success || (closest_hit.success && node_hit.distance > closest_hit.distance) {
+            continue;
+        }
+
+        if node.child_node != 0 {
+            // node has children, push them to the stack so we can test them next
+            push_to_node_stack(&node_stack, bvh.nodes[node.child_node]);
+            push_to_node_stack(&node_stack, bvh.nodes[node.child_node + 1]);
+        } else {
+            // node has no children, trace objects directly
+            for (var i = node.start_index; i < node.start_index + node.len; i++) {
+                let sphere = spheres.list[i];
+
+                let hit = ray_sphere_intersect(ray, sphere);
+                closest_hit = merge_hit(closest_hit, hit);
+            }
+        }
     }
 
     return closest_hit;
@@ -146,13 +206,7 @@ fn material_hit_result(hit: Hit, ray: Ray, stack: ptr<function, Stack>, waveleng
             ior = current_ior / previous_ior;
         }
 
-        ior = ior + -0.0002 * (wavelength - 550.0);
-
-        // if hit.front_face {
-        //     ior = 1.0 / ior_from_wavelength_bk7(wavelength);
-        // } else {
-        //     ior = ior_from_wavelength_bk7(wavelength) / 1.0;
-        // }
+        ior = ior + -0.0001 * (wavelength - 550.0);
 
         let cannot_refract = ior * sin_theta > 1.0;
 
@@ -164,8 +218,6 @@ fn material_hit_result(hit: Hit, ray: Ray, stack: ptr<function, Stack>, waveleng
             brdf = 1.0;
             
             dir = reflect(ray.dir, rough_normal);
-            //dir = mix(dir, generate_cosine_vector(hit.normal), hit.material.roughness);
-
             pos += hit.normal * 0.0001;
         } else {
             if hit.front_face {
@@ -174,17 +226,11 @@ fn material_hit_result(hit: Hit, ray: Ray, stack: ptr<function, Stack>, waveleng
                 pop_from_stack(stack);
             }
 
-            // dir = generate_cosine_vector(hit.normal);
-            // pos += hit.normal * 0.0001;
-
             brdf = albedo;
 
             dir = refract(ray.dir, rough_normal, ior);
-            //dir = normalize(dir + generate_unit_vector() * hit.material.roughness);
-
             pos -= hit.normal * 0.0001;
         }
-
 
         return MaterialHitResult(brdf, Ray(pos, dir));
     } else {
@@ -212,14 +258,11 @@ fn pathtrace(ray: Ray, wavelength: f32) -> vec3<f32> {
     }
 
     for (var i = 0; i < bounces; i++) {
-        var hit: Hit;
-        var weight: f32 = 1.0 / TAU;
-
-        hit = raytrace(current_ray);
+        let hit = raytrace_bvh(current_ray);
 
         if !hit.success {
             // hit sky
-            radiance += throughput * rgb_to_spectral_intensity(rgb_to_spectral_intensity_lut, sky(ray), wavelength);
+            radiance += throughput * rgb_to_spectral_intensity(rgb_to_spectral_intensity_lut, sky(current_ray), wavelength);
             break;
         }
 
@@ -270,7 +313,8 @@ fn compute(
 
     let rays = 1;
     for (var i = 0; i < rays; i++) {
-        color += pathtrace(ray, generate_wavelength()) / f32(rays);
+        let wavelength = generate_wavelength();
+        color += pathtrace(ray, wavelength) / f32(rays);
     }
 
     let sample = textureLoad(color_texture_copy, global_id.xy);

@@ -13,6 +13,7 @@ pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
 #[derive(Clone)]
 pub struct GpuState {
     pub instance: Arc<wgpu::Instance>,
+    pub adapter: Arc<wgpu::Adapter>,
     pub device: Arc<wgpu::Device>,
     pub queue: Arc<wgpu::Queue>,
 }
@@ -20,6 +21,7 @@ pub struct GpuState {
 pub struct RenderState {
     pub surface: wgpu::Surface<'static>,
     pub instance: Arc<wgpu::Instance>,
+    pub adapter: Arc<wgpu::Adapter>,
     pub device: Arc<wgpu::Device>,
     pub queue: Arc<wgpu::Queue>,
     pub config: wgpu::SurfaceConfiguration,
@@ -86,12 +88,14 @@ impl RenderState {
         surface.configure(&device, &config);
 
         let instance = Arc::new(instance);
+        let adapter = Arc::new(adapter);
         let device = Arc::new(device);
         let queue = Arc::new(queue);
 
         Self {
             surface,
             instance,
+            adapter,
             device,
             queue,
             config,
@@ -103,6 +107,7 @@ impl RenderState {
     pub fn get_gpu_state(&self) -> GpuState {
         GpuState {
             instance: self.instance.clone(),
+            adapter: self.adapter.clone(),
             device: self.device.clone(),
             queue: self.queue.clone(),
         }

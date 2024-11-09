@@ -7,6 +7,8 @@ edition = "2021"
 wgpu = "22.1.0"
 winit = { version = "0.30.5", features = ["rwh_05"] }
 
+egui-wgpu = "0.29.1"
+
 gpu_bytes_derive = { git = "https://github.com/ambrosia13/gpu_bytes_derive.git" }
 gpu_bytes = { git = "https://github.com/ambrosia13/gpu_bytes.git" }
 glam = { version = "0.27.0", features = ["bytemuck"] }
@@ -15,7 +17,7 @@ rand = "0.8.5"
 log = "0.4.21"
 env_logger = "0.11.3"
 
-pollster = "0.3.0"
+pollster = "0.4.0"
 bytemuck = { version = "1.16.0", features = ["derive"] }
 derived-deref = "2.1.0"
 

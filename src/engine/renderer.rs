@@ -2,7 +2,11 @@ use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
 use crate::renderer::{
     bloom::BloomRenderContext,
-    buffers::{AabbListBuffer, PlaneListBuffer, ScreenBuffer, SphereListBuffer},
+    buffer::{
+        bvh::BvhBuffer,
+        object::{AabbListBuffer, PlaneListBuffer, SphereListBuffer},
+        screen::ScreenBuffer,
+    },
     final_pass::FinalRenderContext,
     raytrace::RaytraceRenderContext,
     screen_quad::ScreenQuad,
@@ -25,6 +29,7 @@ pub struct Renderer<'a> {
     pub sphere_list_buffer: SphereListBuffer,
     pub plane_list_buffer: PlaneListBuffer,
     pub aabb_list_buffer: AabbListBuffer,
+    pub bvh_buffer: BvhBuffer,
 }
 
 impl<'a> Renderer<'a> {
@@ -36,6 +41,8 @@ impl<'a> Renderer<'a> {
         let plane_list_buffer = PlaneListBuffer::new("Plane List Buffer", render_state);
         let aabb_list_buffer = AabbListBuffer::new("AABB List Buffer", render_state);
 
+        let bvh_buffer = BvhBuffer::new(render_state);
+
         let screen_quad = ScreenQuad::new(render_state);
 
         let raytrace_render_context = RaytraceRenderContext::new(
@@ -44,6 +51,7 @@ impl<'a> Renderer<'a> {
             &sphere_list_buffer,
             &plane_list_buffer,
             &aabb_list_buffer,
+            &bvh_buffer,
         );
 
         let bloom_render_context = BloomRenderContext::new(
@@ -70,6 +78,7 @@ impl<'a> Renderer<'a> {
             sphere_list_buffer,
             plane_list_buffer,
             aabb_list_buffer,
+            bvh_buffer,
         }
     }
 
@@ -80,7 +89,10 @@ impl<'a> Renderer<'a> {
 
             let update_object_bindings = self.sphere_list_buffer.update(&engine_state.object_list)
                 | self.plane_list_buffer.update(&engine_state.object_list)
-                | self.aabb_list_buffer.update(&engine_state.object_list);
+                | self.aabb_list_buffer.update(&engine_state.object_list)
+                | self
+                    .bvh_buffer
+                    .update(&engine_state.bounding_volume_hierarchy);
 
             // if updating the object buffers caused a reallocation, update the bindings so the raytracer
             // has access to the new buffers
@@ -89,6 +101,7 @@ impl<'a> Renderer<'a> {
                     &self.sphere_list_buffer,
                     &self.plane_list_buffer,
                     &self.aabb_list_buffer,
+                    &self.bvh_buffer,
                 );
             }
 
