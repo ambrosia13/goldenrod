@@ -76,13 +76,11 @@ fn sky(ray: Ray) -> vec3<f32> {
 
 fn raytrace(ray: Ray) -> Hit {
     var closest_hit: Hit;
-    var samples = 0.0;
 
     for (var i = 0u; i < spheres.num_spheres; i++) {
         let sphere = spheres.list[i];
 
         let hit = ray_sphere_intersect(ray, sphere);
-        samples += 1.0;
         closest_hit = merge_hit(closest_hit, hit);
     }
 
@@ -90,7 +88,6 @@ fn raytrace(ray: Ray) -> Hit {
         let plane = planes.list[i];
 
         let hit = ray_plane_intersect(ray, plane);
-        samples += 1.0;
         closest_hit = merge_hit(closest_hit, hit);
     }
 
@@ -98,29 +95,24 @@ fn raytrace(ray: Ray) -> Hit {
         let aabb = aabbs.list[i];
 
         let hit = ray_aabb_intersect(ray, aabb);
-        samples += 1.0;
         closest_hit = merge_hit(closest_hit, hit);
     }
-
-    closest_hit.distance = samples;
 
     return closest_hit;
 }
 
 fn raytrace_bvh(ray: Ray) -> Hit {
     var node_stack = new_node_stack();
-
-    let default_node = BvhNode(
-        BoundingVolume(vec3(0.0), vec3(0.0)),
-        0, 0, 0
-    );
+    let default_node = 0u;
 
     var closest_hit: Hit;
 
-    push_to_node_stack(&node_stack, bvh.nodes[0]);
+    push_to_node_stack(&node_stack, 0u);
 
     while !node_stack_is_empty(&node_stack) {
-        let node = top_of_node_stack_or(&node_stack, default_node);
+        let node_index = top_of_node_stack_or(&node_stack, default_node);
+        let node = bvh.nodes[node_index];
+
         pop_from_node_stack(&node_stack);
 
         let node_hit = ray_bounding_volume_intersect(ray, node.bounds);
@@ -132,8 +124,8 @@ fn raytrace_bvh(ray: Ray) -> Hit {
 
         if node.child_node != 0 {
             // node has children, push them to the stack so we can test them next
-            push_to_node_stack(&node_stack, bvh.nodes[node.child_node]);
-            push_to_node_stack(&node_stack, bvh.nodes[node.child_node + 1]);
+            push_to_node_stack(&node_stack, node.child_node);
+            push_to_node_stack(&node_stack, node.child_node + 1);
         } else {
             // node has no children, trace objects directly
             for (var i = node.start_index; i < node.start_index + node.len; i++) {
@@ -149,7 +141,10 @@ fn raytrace_bvh(ray: Ray) -> Hit {
 }
 
 fn raytrace_all(ray: Ray) -> Hit {
-    return merge_hit(raytrace(ray), raytrace_bvh(ray));
+    var hit: Hit;
+    hit = merge_hit(hit, raytrace(ray));
+    hit = merge_hit(hit, raytrace_bvh(ray));
+    return hit;
 }
 
 // Schlick approximation for reflectance
@@ -270,7 +265,7 @@ fn pathtrace(ray: Ray, wavelength: f32) -> vec3<f32> {
     }
 
     for (var i = 0; i < bounces; i++) {
-        let hit = raytrace_all(current_ray);
+        let hit = raytrace_bvh(current_ray);
 
         if !hit.success {
             // hit sky
@@ -344,9 +339,9 @@ fn compute(
 
     color = mix(previous_color, color, 1.0 / (frame_age + 1.0));
 
-    // let hit = raytrace_bvh(ray);
+    // let hit = raytrace_all(ray);
     // if hit.success {
-    //     color = hit.normal * 0.5 + 0.5;
+    //     color = hit.material.albedo;
     // }
 
     textureStore(color_texture, global_id.xy, vec4(color, frame_age + 1.0));

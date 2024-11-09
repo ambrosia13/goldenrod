@@ -195,16 +195,23 @@ pub struct BoundingVolumeHierarchy {
 }
 
 impl BoundingVolumeHierarchy {
-    pub const MAX_DEPTH: u32 = 10;
-
     pub fn new<T: AsBoundingVolume>(list: &mut [T], version: u32) -> Self {
+        let num_objects_per_leaf = 4;
+        let calculated_max_depth = 30;
+        //(f32::log2(list.len() as f32 / num_objects_per_leaf as f32) as u32).min(32);
+
+        log::info!(
+            "Using a depth of {} for BVH construction",
+            calculated_max_depth
+        );
+
         // create the root node
         let mut root = BvhNode::root(list);
 
         let mut nodes = Vec::with_capacity(1024);
         nodes.push(root);
 
-        root.split(list, &mut nodes, 0, Self::MAX_DEPTH);
+        root.split(list, &mut nodes, 0, calculated_max_depth);
         nodes[0] = root;
 
         Self { version, nodes }

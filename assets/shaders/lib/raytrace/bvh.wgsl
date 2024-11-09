@@ -34,15 +34,15 @@ fn ray_bounding_volume_intersect(ray: Ray, bounding_volume: BoundingVolume) -> B
     }
 }
 
-const NODE_STACK_SIZE = 10u;
+const NODE_STACK_SIZE = 32u;
 
 struct NodeStack {
     len: u32,
-    values: array<BvhNode, NODE_STACK_SIZE>,
+    values: array<u32, NODE_STACK_SIZE>,
 }
 
 fn new_node_stack() -> NodeStack {
-    return NodeStack(0, array<BvhNode, NODE_STACK_SIZE>());
+    return NodeStack(0, array<u32, NODE_STACK_SIZE>());
 }
 
 fn node_stack_is_empty(node_stack: ptr<function, NodeStack>) -> bool {
@@ -53,7 +53,7 @@ fn node_stack_is_full(node_stack: ptr<function, NodeStack>) -> bool {
     return (*node_stack).len >= NODE_STACK_SIZE;
 }
 
-fn push_to_node_stack(node_stack: ptr<function, NodeStack>, val: BvhNode) {
+fn push_to_node_stack(node_stack: ptr<function, NodeStack>, val: u32) {
     // only push if we still have capacity
     if !node_stack_is_full(node_stack) {
         (*node_stack).values[(*node_stack).len] = val;
@@ -69,7 +69,7 @@ fn pop_from_node_stack(node_stack: ptr<function, NodeStack>) {
 
 }
 
-fn top_of_node_stack_or(node_stack: ptr<function, NodeStack>, or: BvhNode) -> BvhNode {
+fn top_of_node_stack_or(node_stack: ptr<function, NodeStack>, or: u32) -> u32 {
     if node_stack_is_empty(node_stack) || ((*node_stack).len > NODE_STACK_SIZE) {
         return or;
     } else {

@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{Quat, Vec3};
 use winit::keyboard::KeyCode;
 
 use crate::{
@@ -34,15 +34,17 @@ impl EngineState {
         let mut object_list = ObjectList::new();
         object_list.random_scene();
 
-        for triangle in util::gltf::load_triangles_from_gltf(
-            "assets/meshes/suzanne",
-            Vec3::new(0.0, 4.0, 0.0),
-            Material::random(),
-        )
-        .unwrap()
-        {
-            object_list.push_triangle(triangle);
-        }
+        // for triangle in util::gltf::load_triangles_from_gltf(
+        //     "assets/meshes/suzanne",
+        //     Vec3::new(0.0, 3.0, 0.0),
+        //     Quat::from_rotation_y(1.5),
+        //     1.0,
+        //     Material::random(),
+        // )
+        // .unwrap()
+        // {
+        //     object_list.push_triangle(triangle);
+        // }
 
         let bounding_volume_hierarchy = BoundingVolumeHierarchy::from_objects(&mut object_list);
 

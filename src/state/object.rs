@@ -1,6 +1,10 @@
-use glam::Vec3;
+use core::f32;
+
+use glam::{Quat, Vec3};
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use rand::Rng;
+
+use crate::util;
 
 use super::{
     bvh::{AsBoundingVolume, BoundingVolume},
@@ -224,6 +228,25 @@ impl ObjectList {
         self.spheres.clear();
         self.planes.clear();
         self.aabbs.clear();
+        self.triangles.clear();
+
+        let offset = Vec3::new(30.0, 10.0, 30.0);
+        let scale = 1.0;
+        let mut rotation = Quat::from_rotation_x(f32::consts::PI / 2.0);
+        rotation *= Quat::from_rotation_z(0.1 * f32::consts::PI);
+        rotation *= Quat::from_rotation_y(-0.2 * f32::consts::PI);
+
+        for triangle in util::gltf::load_triangles_from_glb(
+            "assets/meshes/tie_fighter.glb",
+            offset,
+            rotation,
+            scale,
+            Material::random(),
+        )
+        .unwrap()
+        {
+            self.push_triangle(triangle);
+        }
 
         self.push_plane(Plane::new(
             Vec3::Y,
@@ -272,7 +295,7 @@ impl ObjectList {
                         .sqrt()
                 };
 
-                match rand::thread_rng().gen_range(0..2) {
+                match rand::thread_rng().gen_range(0..3) {
                     0 => {
                         let radius = rand_radius();
 
@@ -302,6 +325,24 @@ impl ObjectList {
                             )
                             .pad(),
                         )
+                    }
+                    2 => {
+                        // let scale = rand_radius();
+                        // let angle = rand::thread_rng().gen_range(0.0..f32::consts::TAU);
+                        // let rotation = Quat::from_rotation_y(angle);
+
+                        // let triangles = util::gltf::load_triangles_from_gltf(
+                        //     "assets/meshes/suzanne",
+                        //     Vec3::new(x + offset_x, scale, z + offset_z),
+                        //     rotation,
+                        //     scale,
+                        //     Material::random(),
+                        // )
+                        // .unwrap();
+
+                        // for triangle in triangles {
+                        //     self.push_triangle(triangle);
+                        // }
                     }
                     _ => unreachable!(),
                 }
