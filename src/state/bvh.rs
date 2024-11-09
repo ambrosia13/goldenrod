@@ -213,7 +213,7 @@ impl BoundingVolumeHierarchy {
     pub fn from_objects(object_list: &mut ObjectList) -> Self {
         // version needs to preemptively incremented because accessing spheres_mut() will increment the version
         let version = object_list.version() + 1;
-        Self::new(object_list.spheres_mut(), version)
+        Self::new(object_list.triangles_mut(), version)
     }
 
     pub fn nodes(&self) -> &[BvhNode] {

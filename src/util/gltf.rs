@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use glam::Vec3;
 use gltf::{mesh::Mode, Gltf};
 
 use crate::state::{material::Material, object::Triangle};
@@ -38,6 +39,7 @@ impl Error for GltfLoadError {}
 
 pub fn load_triangles_from_gltf<P: AsRef<Path>>(
     relative_path: P,
+    offset: Vec3,
     material: Material,
 ) -> Result<Vec<Triangle>, GltfLoadError> {
     let parent_path = std::env::current_dir()?;
@@ -90,9 +92,9 @@ pub fn load_triangles_from_gltf<P: AsRef<Path>>(
 
                 for chunk in indices.into_u32().collect::<Vec<_>>().chunks(3) {
                     triangles.push(Triangle::new(
-                        positions[chunk[0] as usize].into(),
-                        positions[chunk[1] as usize].into(),
-                        positions[chunk[2] as usize].into(),
+                        Vec3::from(positions[chunk[0] as usize]) + offset.x,
+                        Vec3::from(positions[chunk[1] as usize]) + offset.y,
+                        Vec3::from(positions[chunk[2] as usize]) + offset.z,
                         material,
                     ));
                 }
