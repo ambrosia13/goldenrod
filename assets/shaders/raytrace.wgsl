@@ -71,7 +71,7 @@ var color_texture_copy: texture_storage_2d<rgba32float, read>;
 
 fn sky(ray: Ray) -> vec3<f32> {
     let color = textureSampleLevel(sky_cubemap_texture, sky_cubemap_sampler, ray.dir, 0.0).rgb;
-    return color * 0.5;
+    return color;
 }
 
 fn raytrace(ray: Ray) -> Hit {
@@ -265,7 +265,7 @@ fn pathtrace(ray: Ray, wavelength: f32) -> vec3<f32> {
     }
 
     for (var i = 0; i < bounces; i++) {
-        let hit = raytrace_bvh(current_ray);
+        let hit = raytrace_all(current_ray);
 
         if !hit.success {
             // hit sky

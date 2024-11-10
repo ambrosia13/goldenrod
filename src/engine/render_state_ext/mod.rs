@@ -15,6 +15,7 @@ pub mod pass;
 pub mod pipeline;
 pub mod shader;
 pub mod texture;
+pub mod timestamp;
 
 pub trait RenderStateExt {
     fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer;

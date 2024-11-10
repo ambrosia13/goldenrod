@@ -197,8 +197,8 @@ pub struct BoundingVolumeHierarchy {
 impl BoundingVolumeHierarchy {
     pub fn new<T: AsBoundingVolume>(list: &mut [T], version: u32) -> Self {
         let num_objects_per_leaf = 4;
-        let calculated_max_depth = 30;
-        //(f32::log2(list.len() as f32 / num_objects_per_leaf as f32) as u32).min(32);
+        let calculated_max_depth =
+            ((f32::log2(list.len() as f32 / num_objects_per_leaf as f32) + 0.5) as u32).min(32);
 
         log::info!(
             "Using a depth of {} for BVH construction",

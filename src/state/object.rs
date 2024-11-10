@@ -3,6 +3,7 @@ use core::f32;
 use glam::{Quat, Vec3};
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use rand::Rng;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::util;
 
@@ -222,7 +223,7 @@ impl ObjectList {
         }
     }
 
-    pub fn random_scene(&mut self) {
+    pub fn mesh_test_scene(&mut self) {
         self.version += 1;
 
         self.spheres.clear();
@@ -230,23 +231,66 @@ impl ObjectList {
         self.aabbs.clear();
         self.triangles.clear();
 
-        let offset = Vec3::new(30.0, 10.0, 30.0);
-        let scale = 1.0;
-        let mut rotation = Quat::from_rotation_x(f32::consts::PI / 2.0);
-        rotation *= Quat::from_rotation_z(0.1 * f32::consts::PI);
-        rotation *= Quat::from_rotation_y(-0.2 * f32::consts::PI);
+        let lambert = Material {
+            albedo: Vec3::splat(1.0),
+            ty: MaterialType::Lambertian,
+            emission: Vec3::ZERO,
+            roughness: 0.0,
+            ior: 0.0,
+        };
 
-        for triangle in util::gltf::load_triangles_from_glb(
-            "assets/meshes/tie_fighter.glb",
-            offset,
-            rotation,
-            scale,
-            Material::random(),
+        self.push_plane(Plane::new(Vec3::Y, Vec3::ZERO - Vec3::Y * 1.0, lambert));
+
+        let mut triangles = util::gltf::load_triangles_from_gltf(
+            "assets/meshes/suzanne",
+            Vec3::new(0.0, 0.0, 0.0),
+            Quat::IDENTITY,
+            1.0,
+            lambert,
         )
-        .unwrap()
-        {
-            self.push_triangle(triangle);
-        }
+        .unwrap();
+
+        self.triangles.extend_from_slice(&triangles);
+
+        let mutate_vertices = |offset: Vec3, material: Material, triangles: &mut [Triangle]| {
+            triangles.par_iter_mut().for_each(|triangle| {
+                triangle.a += offset;
+                triangle.b += offset;
+                triangle.c += offset;
+                triangle.material = material;
+            });
+        };
+
+        let material = Material {
+            albedo: Vec3::new(0.5, 0.7, 1.0),
+            ty: MaterialType::Dielectric,
+            emission: Vec3::ZERO,
+            roughness: 0.1,
+            ior: 1.333,
+        };
+
+        mutate_vertices(Vec3::new(-3.0, 0.0, 0.0), material, &mut triangles);
+        self.triangles.extend_from_slice(&triangles);
+
+        let material = Material {
+            albedo: Vec3::new(1.0, 0.7, 0.5),
+            ty: MaterialType::Metal,
+            emission: Vec3::ZERO,
+            roughness: 0.1,
+            ior: 1.333,
+        };
+
+        mutate_vertices(Vec3::new(6.0, 0.0, 0.0), material, &mut triangles);
+        self.triangles.extend_from_slice(&triangles);
+    }
+
+    pub fn random_scene(&mut self) {
+        self.version += 1;
+
+        self.spheres.clear();
+        self.planes.clear();
+        self.aabbs.clear();
+        self.triangles.clear();
 
         self.push_plane(Plane::new(
             Vec3::Y,
