@@ -18,6 +18,10 @@ pub mod texture;
 pub mod timestamp;
 
 pub trait RenderStateExt {
+    fn device(&self) -> &wgpu::Device;
+
+    fn queue(&self) -> &wgpu::Queue;
+
     fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer;
 
     fn create_binding(&self, entries: &[WgpuBindingEntry]) -> WgpuBinding;
@@ -42,6 +46,14 @@ pub trait RenderStateExt {
 }
 
 impl RenderStateExt for GpuState {
+    fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
+
     fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer {
         let (buffer, len) = match config.data {
             BufferData::Init(data) => (
@@ -232,6 +244,14 @@ impl RenderStateExt for GpuState {
 }
 
 impl RenderStateExt for RenderState {
+    fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
+
     fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer {
         self.get_gpu_state().create_buffer(name, config)
     }

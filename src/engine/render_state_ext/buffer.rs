@@ -1,9 +1,8 @@
 use std::ops::Deref;
 
 use gpu_bytes::{AsStd140, AsStd430};
-use wgpu::util::DeviceExt;
 
-use crate::engine::render_state::{GpuState, RenderState};
+use crate::engine::render_state::GpuState;
 
 pub enum BufferData<'a> {
     Init(&'a [u8]),
