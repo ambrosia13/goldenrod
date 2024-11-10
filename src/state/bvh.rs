@@ -32,7 +32,10 @@ impl BoundingVolume {
     }
 
     pub fn grow<T: AsBoundingVolume>(&mut self, object: &T) {
-        *self += object.bounding_volume();
+        let bounds = object.bounding_volume();
+
+        self.min = self.min.min(bounds.min);
+        self.max = self.max.max(bounds.max);
     }
 
     pub fn is_empty(self) -> bool {
@@ -43,40 +46,6 @@ impl BoundingVolume {
 impl AsBoundingVolume for BoundingVolume {
     fn bounding_volume(&self) -> BoundingVolume {
         *self
-    }
-}
-
-impl Add for BoundingVolume {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            min: self.min.min(rhs.min),
-            max: self.max.max(rhs.max),
-        }
-    }
-}
-
-impl AddAssign for BoundingVolume {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs;
-    }
-}
-
-impl Add<Vec3> for BoundingVolume {
-    type Output = Self;
-
-    fn add(self, rhs: Vec3) -> Self::Output {
-        Self {
-            min: self.min.min(rhs),
-            max: self.max.max(rhs),
-        }
-    }
-}
-
-impl AddAssign<Vec3> for BoundingVolume {
-    fn add_assign(&mut self, rhs: Vec3) {
-        *self = *self + rhs;
     }
 }
 
