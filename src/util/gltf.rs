@@ -11,6 +11,7 @@ use gltf::{mesh::Mode, Gltf};
 use crate::state::{material::Material, object::Triangle};
 
 #[derive(Debug)]
+#[allow(unused)]
 pub enum GltfLoadError {
     InvalidFileStructure,
     IoError(std::io::Error),

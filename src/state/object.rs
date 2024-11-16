@@ -3,7 +3,6 @@ use core::f32;
 use glam::{Quat, Vec3};
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use rand::Rng;
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::util;
 
@@ -254,9 +253,9 @@ impl ObjectList {
         let triangles = util::gltf::load_triangles_from_glb(
             "assets/meshes/car.glb",
             Vec3::new(0.0, -1.5, -0.25),
-            Quat::from_rotation_x(-f32::consts::PI / 2.0),
+            Quat::from_rotation_y(f32::consts::PI) * Quat::from_rotation_x(-f32::consts::PI / 2.0),
             0.1,
-            Material::default(),
+            Material::metal(Vec3::new(1.0, 0.75, 0.2), 0.05),
         )
         .unwrap();
 

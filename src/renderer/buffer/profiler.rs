@@ -2,7 +2,7 @@ use gpu_bytes_derive::{AsStd140, AsStd430};
 
 use crate::engine::profiler_state::ProfilerState;
 
-use super::{DynamicBuffer, UpdateFromSource, MIN_DYNAMIC_BUFFER_CAPACITY};
+use super::{DynamicBuffer, UpdateFromSource};
 
 pub const PROFILER_STEP_SIZE: usize = 10;
 pub const PROFILER_STEP_COUNT: usize = 60;

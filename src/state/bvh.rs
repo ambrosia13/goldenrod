@@ -1,7 +1,6 @@
-use std::ops::{Add, AddAssign};
-
 use glam::{FloatExt, Vec3};
 use gpu_bytes_derive::{AsStd140, AsStd430};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use super::object::ObjectList;
 
@@ -41,10 +40,6 @@ impl BoundingVolume {
         2.0 * (width * height + width * depth + height * depth)
     }
 
-    // pub fn split_along_axis(self, axis: usize, midpoint: Vec3) {
-    //     let mut split = Vec3::new(midpoint);
-    // }
-
     pub fn grow<T: AsBoundingVolume>(&mut self, object: &T) {
         let bounds = object.bounding_volume();
 
@@ -52,24 +47,9 @@ impl BoundingVolume {
         self.max = self.max.max(bounds.max);
     }
 
-    pub fn shrink<T: AsBoundingVolume>(&mut self, object: &T) {
-        let bounds = object.bounding_volume();
-
-        self.min = self.min.max(bounds.min);
-        self.max = self.max.min(bounds.max);
-    }
-
     pub fn is_empty(self) -> bool {
         self.min.distance_squared(self.max) < 0.00001
     }
-}
-
-#[test]
-fn test() {
-    let mut bounds = BoundingVolume::new(Vec3::ZERO, Vec3::ONE);
-    bounds.shrink(&BoundingVolume::new(Vec3::ONE * 0.8, Vec3::ONE * 1.5));
-
-    println!("{:?}", bounds);
 }
 
 impl AsBoundingVolume for BoundingVolume {
@@ -111,7 +91,7 @@ impl BvhNode {
         &list[start..end]
     }
 
-    fn split_cost<T: AsBoundingVolume>(
+    fn evaluate_split_cost<T: AsBoundingVolume>(
         bounds: BoundingVolume,
         list: &[T],
         axis: usize,
@@ -145,66 +125,56 @@ impl BvhNode {
     }
 
     // returns (axis, threshold)
-    fn choose_split_axis<T: AsBoundingVolume + Clone>(
+    fn choose_split_axis<T: AsBoundingVolume + Clone + Sync>(
         bounds: BoundingVolume,
         list: &[T],
     ) -> (usize, f32) {
-        // let extent = bounds.max - bounds.min;
-        // let axis = extent
-        //     .to_array()
-        //     .into_iter()
-        //     .enumerate()
-        //     .max_by(|(_, e1), (_, e2)| e1.total_cmp(e2))
-        //     .map(|(i, _)| i)
-        //     .unwrap();
+        // if there are fewer objects in the volume, we can take fewer cost samples
+        let search_steps = list.len().clamp(2, 20);
 
-        // let mut sorted_list: Vec<_> = list_iter.collect();
-        // sorted_list.sort_by(|a, b| {
-        //     a.bounding_volume().center()[axis].total_cmp(&b.bounding_volume().center()[axis])
-        // });
+        // compute the results for all 3 axes in parallel, and then choose the best at the end
+        let mut results_per_axis: Vec<_> = (0..3)
+            .into_par_iter()
+            .map(|axis| {
+                let bounds_start = bounds.min[axis];
+                let bounds_end = bounds.max[axis];
 
-        // let half_len = sorted_list.len() / 2;
-        // let threshold = sorted_list[half_len].bounding_volume().center()[axis] + 0.01;
+                // Vec<(cost, threshold)>
+                // compute all the results in parallel and then choose the best one at the end
+                let results: Vec<(f32, f32)> = (0..search_steps)
+                    .into_par_iter()
+                    .map(|i| {
+                        let threshold =
+                            bounds_start.lerp(bounds_end, (i as f32 + 0.5) / search_steps as f32);
 
-        // (axis, threshold)
+                        let cost = Self::evaluate_split_cost(bounds, list, axis, threshold);
 
-        let search_steps = 20.min(list.len() + 1);
+                        (cost, threshold)
+                    })
+                    .collect();
 
-        let mut best_cost = f32::INFINITY;
-        let mut best_axis = 0;
-        let mut best_threshold = 0.0;
+                let mut best_cost = f32::INFINITY;
+                let mut best_threshold = 0.0;
 
-        for axis in 0..3 {
-            // let mut sorted_objects = list.to_vec();
-
-            // sorted_objects.sort_by(|a, b| {
-            //     let a_center = a.bounding_volume().center();
-            //     let b_center = b.bounding_volume().center();
-
-            //     a_center[axis].total_cmp(&b_center[axis])
-            // });
-
-            let bounds_start = bounds.min[axis];
-            let bounds_end = bounds.max[axis];
-
-            for i in 0..search_steps {
-                let threshold =
-                    bounds_start.lerp(bounds_end, (i as f32 + 0.5) / search_steps as f32);
-
-                let cost = Self::split_cost(bounds, list, axis, threshold);
-
-                if cost < best_cost {
-                    best_cost = cost;
-                    best_axis = axis;
-                    best_threshold = threshold;
+                for (cost, threshold) in results {
+                    if cost < best_cost {
+                        best_cost = cost;
+                        best_threshold = threshold;
+                    }
                 }
-            }
-        }
+
+                (best_cost, axis, best_threshold)
+            })
+            .collect();
+
+        results_per_axis
+            .sort_unstable_by(|(cost_a, _, _), (cost_b, _, _)| cost_a.total_cmp(cost_b));
+        let (_, best_axis, best_threshold) = results_per_axis[0];
 
         (best_axis, best_threshold)
     }
 
-    pub fn split<T: AsBoundingVolume + Clone>(
+    pub fn split<T: AsBoundingVolume + Clone + Sync>(
         &mut self,
         list: &mut [T],
         nodes: &mut Vec<Self>,
@@ -277,13 +247,16 @@ pub struct BoundingVolumeHierarchy {
 }
 
 impl BoundingVolumeHierarchy {
-    pub fn new<T: AsBoundingVolume + Clone>(list: &mut [T], version: u32) -> Self {
+    pub fn new<T: AsBoundingVolume + Clone + Sync>(list: &mut [T], version: u32) -> Self {
+        let instant = std::time::Instant::now();
+
         let max_depth = f32::log2(list.len() as f32) as u32;
 
         // create the root node
         let mut root = BvhNode::root(list);
 
-        let mut nodes = Vec::with_capacity(1024);
+        let initial_node_capacity = list.len() * 3 / 2;
+        let mut nodes = Vec::with_capacity(initial_node_capacity);
         nodes.push(root);
 
         if !list.is_empty() {
@@ -291,11 +264,12 @@ impl BoundingVolumeHierarchy {
             nodes[0] = root;
         }
 
+        let construction_time = instant.elapsed().as_secs_f64();
+
         let leaf_node_count = nodes.iter().filter(|node| node.child_node == 0).count();
 
-        let largest_leaf_object_count = nodes
+        let largest_leaf_object_count = nodes[1..]
             .iter()
-            .skip(1)
             .filter(|node| node.child_node == 0)
             .map(|node| node.len)
             .max()
@@ -324,13 +298,15 @@ impl BoundingVolumeHierarchy {
             BVH: Actual node max depth: {},
             BVH: Number of leaf nodes: {},
             BVH: Largest leaf object count: {}
+            BVH: Time to construct: {} seconds
             "#,
             list.len(),
             nodes.len(),
             max_depth,
             get_max_depth(&nodes, 0), // start search with the root node
             leaf_node_count,
-            largest_leaf_object_count
+            largest_leaf_object_count,
+            construction_time
         );
 
         Self { version, nodes }

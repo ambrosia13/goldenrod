@@ -25,7 +25,7 @@ pub struct Renderer<'a> {
     pub debug_render_context: DebugRenderContext<'a>,
     pub final_render_context: FinalRenderContext,
 
-    pub screen_quad: ScreenQuad,
+    pub _screen_quad: ScreenQuad,
 
     pub screen_buffer: ScreenBuffer,
 
@@ -93,7 +93,7 @@ impl<'a> Renderer<'a> {
             bloom_render_context,
             debug_render_context,
             final_render_context,
-            screen_quad,
+            _screen_quad: screen_quad,
             screen_buffer,
             object_buffer_version,
             sphere_list_buffer,

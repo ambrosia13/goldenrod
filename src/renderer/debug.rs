@@ -5,14 +5,11 @@ use gpu_bytes::AsStd430;
 use gpu_bytes_derive::{AsStd140, AsStd430};
 
 use crate::engine::{
-    profiler_state::ProfilerState,
     render_state::{GpuState, RenderState},
     render_state_ext::{
         binding::{WgpuBinding, WgpuBindingData, WgpuBindingEntry},
-        buffer::WgpuBuffer,
         pass::WgpuComputePass,
         pipeline::{WgpuComputePipelineConfig, WgpuPipelineLayoutConfig, WgpuPushConstantConfig},
-        shader::WgpuShader,
         texture::{WgpuTexture, WgpuTextureConfig, WgpuTextureType},
         RenderStateExt,
     },
