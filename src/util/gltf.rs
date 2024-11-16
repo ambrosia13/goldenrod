@@ -5,10 +5,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use glam::{Quat, Vec3};
+use glam::{Quat, Vec2, Vec3};
 use gltf::{mesh::Mode, Gltf};
 
-use crate::state::{material::Material, object::Triangle};
+use crate::{
+    engine::{render_state::GpuState, render_state_ext::texture::WgpuTexture},
+    state::{material::Material, object::Triangle},
+};
 
 #[derive(Debug)]
 #[allow(unused)]
@@ -98,6 +101,9 @@ pub fn load_triangles_from_gltf<P: AsRef<Path>>(
                         (rotation * (Vec3::from(positions[chunk[0] as usize]) * scale)) + offset,
                         (rotation * (Vec3::from(positions[chunk[1] as usize]) * scale)) + offset,
                         (rotation * (Vec3::from(positions[chunk[2] as usize]) * scale)) + offset,
+                        Vec2::ZERO,
+                        Vec2::ZERO,
+                        Vec2::ZERO,
                         material,
                     ));
                 }
@@ -108,13 +114,13 @@ pub fn load_triangles_from_gltf<P: AsRef<Path>>(
     Ok(triangles)
 }
 
-pub fn load_triangles_from_glb<P: AsRef<Path>>(
+pub fn load_triangles_from_glb<'a, P: AsRef<Path>>(
     relative_path: P,
     offset: Vec3,
     rotation: Quat,
     scale: f32,
     material: Material,
-) -> Result<Vec<Triangle>, GltfLoadError> {
+) -> Result<(Vec<Triangle>), GltfLoadError> {
     let parent_path = std::env::current_dir()?;
     let path = parent_path.join(relative_path);
 
@@ -128,10 +134,26 @@ pub fn load_triangles_from_glb<P: AsRef<Path>>(
     }
 
     let gltf = Gltf::open(path)?;
+    let buffers: Vec<_> = gltf.buffers().collect();
 
     let bin_data = gltf.blob.as_deref();
 
     let mut triangles = Vec::new();
+
+    // for texture in gltf.textures() {
+    //     let texture_data = match texture.source().source() {
+    //         gltf::image::Source::View { view, mime_type } => match view.buffer().source() {
+    //             gltf::buffer::Source::Bin => {
+    //                 let start = view.offset();
+    //                 let length = view.length();
+
+    //                 &bin_data.unwrap()[start..(start + length)]
+    //             }
+    //             gltf::buffer::Source::Uri(_) => todo!(),
+    //         },
+    //         gltf::image::Source::Uri { uri, mime_type } => todo!(),
+    //     };
+    // }
 
     for mesh in gltf.meshes() {
         for primitive in mesh.primitives() {
@@ -144,16 +166,22 @@ pub fn load_triangles_from_glb<P: AsRef<Path>>(
                 gltf::buffer::Source::Uri(_) => None,
             });
 
-            if let (Some(positions), Some(indices)) =
-                (reader.read_positions(), reader.read_indices())
-            {
+            if let (Some(positions), Some(indices), Some(uv)) = (
+                reader.read_positions(),
+                reader.read_indices(),
+                reader.read_tex_coords(0),
+            ) {
                 let positions: Vec<[f32; 3]> = positions.collect();
+                let uv: Vec<[f32; 2]> = uv.into_f32().collect();
 
                 for chunk in indices.into_u32().collect::<Vec<_>>().chunks(3) {
                     triangles.push(Triangle::new(
                         (rotation * (Vec3::from(positions[chunk[0] as usize]) * scale)) + offset,
                         (rotation * (Vec3::from(positions[chunk[1] as usize]) * scale)) + offset,
                         (rotation * (Vec3::from(positions[chunk[2] as usize]) * scale)) + offset,
+                        Vec2::from(uv[chunk[0] as usize]),
+                        Vec2::from(uv[chunk[1] as usize]),
+                        Vec2::from(uv[chunk[2] as usize]),
                         material,
                     ));
                 }

@@ -8,6 +8,7 @@ struct Hit {
     position: vec3<f32>,
     normal: vec3<f32>,
     distance: f32,
+    uv: vec2<f32>, // if negative, there is no texture mapping
     far_distance: f32,
     front_face: bool,
     material: Material,
@@ -49,6 +50,9 @@ struct Triangle {
     a: vec3<f32>,
     b: vec3<f32>,
     c: vec3<f32>,
+    uv_a: vec2<f32>,
+    uv_b: vec2<f32>,
+    uv_c: vec2<f32>,
     material: Material,
 }
 
@@ -107,6 +111,7 @@ fn ray_sphere_intersect(ray: Ray, sphere: Sphere) -> Hit {
             hit.position = point;
             hit.normal = normal;
             hit.distance = t;
+            hit.uv = vec2(-1.0);
             hit.far_distance = t_far;
             hit.front_face = front_face;
         }
@@ -136,6 +141,7 @@ fn ray_plane_intersect(ray: Ray, plane: Plane) -> Hit {
     hit.position = ray.pos + ray.dir * t;
     hit.normal = plane.normal * -sign(denom);
     hit.distance = t;
+    hit.uv = vec2(-1.0);
     hit.far_distance = 0.0;
     hit.front_face = true;
 
@@ -145,6 +151,7 @@ fn ray_plane_intersect(ray: Ray, plane: Plane) -> Hit {
 fn ray_aabb_intersect(ray: Ray, aabb: Aabb) -> Hit {
     var hit: Hit;
     hit.material = aabb.material;
+    hit.uv = vec2(-1.0);
     hit.front_face = !all(clamp(ray.pos, aabb.min, aabb.max) == ray.pos);
 
     let t_min = (aabb.min - ray.pos) / ray.dir;
@@ -224,6 +231,8 @@ fn ray_triangle_intersect(ray: Ray, triangle: Triangle) -> Hit {
 
     hit.front_face = dir_dot_normal < 0.0;
     hit.normal *= -sign(dir_dot_normal);
+
+    hit.uv = triangle.uv_a;
 
     return hit;
 }

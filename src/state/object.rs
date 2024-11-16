@@ -1,6 +1,7 @@
 use core::f32;
 
-use glam::{Quat, Vec3};
+use glam::{Quat, Vec2, Vec3};
+use gpu_bytes::{AsStd430, Std430Bytes};
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use rand::Rng;
 
@@ -109,17 +110,59 @@ impl AsBoundingVolume for Aabb {
     }
 }
 
-#[derive(AsStd140, AsStd430, Default, Debug, Clone, Copy)]
+#[derive(AsStd140, Default, Debug, Clone, Copy)]
 pub struct Triangle {
-    a: Vec3,
-    b: Vec3,
-    c: Vec3,
-    material: Material,
+    pub a: Vec3,
+    pub b: Vec3,
+    pub c: Vec3,
+    pub uv_a: Vec2,
+    pub uv_b: Vec2,
+    pub uv_c: Vec2,
+    pub material: Material,
+    pub bounds: BoundingVolume,
+}
+
+impl AsStd430 for Triangle {
+    fn as_std430(&self) -> gpu_bytes::Std430Bytes {
+        let mut buf = Std430Bytes::new();
+
+        buf.write(&self.a);
+        buf.write(&self.b);
+        buf.write(&self.c);
+        buf.write(&self.uv_a);
+        buf.write(&self.uv_b);
+        buf.write(&self.uv_c);
+        buf.write(&self.material);
+
+        buf.align();
+
+        buf
+    }
 }
 
 impl Triangle {
-    pub fn new(a: Vec3, b: Vec3, c: Vec3, material: Material) -> Self {
-        Self { a, b, c, material }
+    pub fn new(
+        a: Vec3,
+        b: Vec3,
+        c: Vec3,
+        uv_a: Vec2,
+        uv_b: Vec2,
+        uv_c: Vec2,
+        material: Material,
+    ) -> Self {
+        Self {
+            a,
+            b,
+            c,
+            uv_a,
+            uv_b,
+            uv_c,
+            material,
+            bounds: BoundingVolume {
+                min: a.min(b.min(c)),
+                max: a.max(b.max(c)),
+            },
+        }
     }
 
     pub fn vertices(&self) -> [Vec3; 3] {
@@ -129,17 +172,7 @@ impl Triangle {
 
 impl AsBoundingVolume for Triangle {
     fn bounding_volume(&self) -> BoundingVolume {
-        let mut bounds = BoundingVolume {
-            min: self.a.min(self.b.min(self.c)),
-            max: self.a.max(self.b.max(self.c)),
-        };
-
-        // if the triangle forms a flat bounding box, pad it a little bit
-        if bounds.min.cmpeq(bounds.max).any() {
-            bounds.max += 0.001;
-        }
-
-        bounds
+        self.bounds
     }
 }
 

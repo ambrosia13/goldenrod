@@ -69,6 +69,14 @@ var color_texture: texture_storage_2d<rgba32float, write>;
 @group(3) @binding(1)
 var color_texture_copy: texture_storage_2d<rgba32float, read>;
 
+fn albedo(hit: Hit) -> vec3<f32> {
+    if any(hit.uv < vec2(0.0)) {
+        return hit.material.albedo;
+    } else {
+        return vec3(clamp(hit.uv, vec2(0.0), vec2(1.0)), 0.01);
+    }
+}
+
 fn sky(ray: Ray) -> vec3<f32> {
     var color = textureSampleLevel(sky_cubemap_texture, sky_cubemap_sampler, ray.dir, 0.0).rgb;
     color = pow(color, vec3(2.2));
@@ -206,7 +214,7 @@ struct MaterialHitResult {
 }
 
 fn material_hit_result(hit: Hit, ray: Ray, stack: ptr<function, Stack>, wavelength: f32) -> MaterialHitResult {
-    let albedo = rgb_to_spectral_intensity(rgb_to_spectral_intensity_lut, hit.material.albedo, wavelength);
+    let albedo = rgb_to_spectral_intensity(rgb_to_spectral_intensity_lut, albedo(hit), wavelength);
     
     if hit.material.ty == MATERIAL_LAMBERTIAN {
         let brdf = albedo / PI;
@@ -373,10 +381,15 @@ fn compute(
 
     var color = vec3(0.0);
 
-    let rays = 1;
-    for (var i = 0; i < rays; i++) {
-        let wavelength = generate_wavelength();
-        color += pathtrace(ray, wavelength) / f32(rays);
+    // let rays = 1;
+    // for (var i = 0; i < rays; i++) {
+    //     let wavelength = generate_wavelength();
+    //     color += pathtrace(ray, wavelength) / f32(rays);
+    // }
+
+    let hit = raytrace_bvh(ray);
+    if hit.success {
+        color = albedo(hit);
     }
 
     let sample = textureLoad(color_texture_copy, global_id.xy);
