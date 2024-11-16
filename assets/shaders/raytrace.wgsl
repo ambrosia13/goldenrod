@@ -117,15 +117,39 @@ fn raytrace_bvh(ray: Ray) -> Hit {
 
         let node_hit = ray_bounding_volume_intersect(ray, node.bounds);
 
-        // Skip to the next node if we don't intersect the current node's bounding box
-        if !node_hit.success || (closest_hit.success && node_hit.distance > closest_hit.distance) {
-            continue;
-        }
+        // // Skip to the next node if we don't intersect the current node's bounding box
+        // // or if we've already found a hit closer than the bounding box
+        // if !node_hit.success || (closest_hit.success && closest_hit.distance < node_hit.distance) {
+        //     continue;
+        // }
 
         if node.child_node != 0 {
             // node has children, push them to the stack so we can test them next
-            push_to_node_stack(&node_stack, node.child_node);
-            push_to_node_stack(&node_stack, node.child_node + 1);
+            let bounds_a = bvh.nodes[node.child_node].bounds;
+            let bounds_b = bvh.nodes[node.child_node + 1].bounds;
+
+            let child_a_hit = ray_bounding_volume_intersect(ray, bounds_a);
+            let child_b_hit = ray_bounding_volume_intersect(ray, bounds_b);
+
+            // Push the first child if we're hitting its bounding volume, and if we haven't already found a closer triangle hit
+            var push_child_a = child_a_hit.success && !(closest_hit.success && closest_hit.distance < child_a_hit.distance);
+
+            // Push the second child if we're hitting its bounding volume, and if we haven't already found a closer triangle hit
+            var push_child_b = child_b_hit.success && !(closest_hit.success && closest_hit.distance < child_b_hit.distance);
+
+            if push_child_a && push_child_b {
+                if child_a_hit.distance < child_b_hit.distance {
+                    push_to_node_stack(&node_stack, node.child_node + 1);
+                    push_to_node_stack(&node_stack, node.child_node);
+                } else {
+                    push_to_node_stack(&node_stack, node.child_node);
+                    push_to_node_stack(&node_stack, node.child_node + 1);
+                }
+            } else if push_child_a {
+                push_to_node_stack(&node_stack, node.child_node);
+            } else if push_child_b {
+                push_to_node_stack(&node_stack, node.child_node + 1);
+            }
         } else {
             // node has no children, trace objects directly
             for (var i = node.start_index; i < node.start_index + node.len; i++) {
@@ -240,6 +264,31 @@ fn material_hit_result(hit: Hit, ray: Ray, stack: ptr<function, Stack>, waveleng
         }
 
         return MaterialHitResult(brdf, Ray(pos, dir));
+    // } else if hit.material.ty == MATERIAL_VOLUME {
+    //     var distance_through_volume = 0.0;
+
+    //     if hit.front_face {
+    //         distance_through_volume = hit.far_distance - hit.distance;
+    //     } else {
+    //         distance_through_volume = hit.distance;
+    //     }
+
+    //     let density = 0.05;
+    //     let scatter_distance = -log(next_f32()) / density;
+    //     let scatter = scatter_distance < distance_through_volume;
+
+    //     if scatter {
+    //         let brdf = albedo;
+    //         let ray_dir = mix(generate_unit_vector(), ray.dir, 0.0);
+    //         let scattered_ray = Ray(hit.position + ray_dir * 0.0001, ray_dir);
+    //         return MaterialHitResult(albedo, scattered_ray);
+    //     } else {
+    //         let transmittance = exp(-density * distance_through_volume);
+    //         let brdf = 1.0 * transmittance;
+            
+    //         let transmitted_ray = Ray(hit.position + ray.dir * 0.0001, ray.dir);
+    //         return MaterialHitResult(brdf, transmitted_ray);
+    //     }
     } else {
         return MaterialHitResult(0.0, Ray(vec3(0.0), vec3(0.0)));
     }
@@ -254,17 +303,9 @@ fn pathtrace(ray: Ray, wavelength: f32) -> vec3<f32> {
 
     var current_ray = ray;
 
-    var bounces = 5;
-    
-    let should_accumulate = 
-        all(screen.camera.position == screen.camera.previous_position) &&
-        all(screen.camera.view == screen.camera.previous_view);
+    let max_bounces = 100;
 
-    if should_accumulate {
-        bounces = 50;
-    }
-
-    for (var i = 0; i < bounces; i++) {
+    for (var i = 0; i < max_bounces; i++) {
         let hit = raytrace_all(current_ray);
 
         if !hit.success {
@@ -278,6 +319,15 @@ fn pathtrace(ray: Ray, wavelength: f32) -> vec3<f32> {
 
         let material_hit_result = material_hit_result(hit, current_ray, &ior_stack, wavelength);
         throughput *= material_hit_result.brdf;
+
+        // Russian roulette path termination
+        let probability = clamp(throughput, 0.0, 1.0);
+        if next_f32() > probability {
+            break;
+        }
+
+        // account for the energy lost by rays that were terminated
+        throughput *= 1.0 / probability;
 
         current_ray = material_hit_result.next_ray;
     }
@@ -338,6 +388,7 @@ fn compute(
     }
 
     color = mix(previous_color, color, 1.0 / (frame_age + 1.0));
+
 
     // let hit = raytrace_all(ray);
     // if hit.success {

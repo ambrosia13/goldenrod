@@ -14,11 +14,13 @@ var<push_constant> lod_info: LodInfo;
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    return sample_13(
+    let color = sample_13(
         bloom_texture, 
         bloom_sampler, 
         in.uv, 
         vec2(screen.view.width >> lod_info.current_lod, screen.view.height >> lod_info.current_lod)
     );
+
+    return vec4(color.rgb, 1.0);
     // return textureSample(bloom_texture, bloom_sampler, in.uv);
 }

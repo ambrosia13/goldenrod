@@ -20,5 +20,5 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let color = textureSample(color_texture, color_sampler, in.uv);
     let bloom = textureSample(upsample_texture, upsample_sampler, in.uv);
 
-    return mix(color, bloom, 0.2);
+    return max(vec4(0.0), mix(color, bloom, 0.2));
 }

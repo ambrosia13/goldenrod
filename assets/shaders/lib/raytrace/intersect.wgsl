@@ -8,6 +8,7 @@ struct Hit {
     position: vec3<f32>,
     normal: vec3<f32>,
     distance: f32,
+    far_distance: f32,
     front_face: bool,
     material: Material,
 }
@@ -15,6 +16,7 @@ struct Hit {
 const MATERIAL_LAMBERTIAN: u32 = 0u;
 const MATERIAL_METAL: u32 = 1u;
 const MATERIAL_DIELECTRIC: u32 = 2u;
+const MATERIAL_VOLUME: u32 = 3u;
 
 struct Material {
     albedo: vec3<f32>,
@@ -22,6 +24,7 @@ struct Material {
     emission: vec3<f32>,
     roughness: f32,
     ior: f32,
+    g: f32,
 }
 
 struct Sphere {
@@ -86,12 +89,10 @@ fn ray_sphere_intersect(ray: Ray, sphere: Sphere) -> Hit {
     if determinant >= 0.0 {
         let determinant_sqrt = sqrt(determinant);
         var t = (-b - determinant_sqrt) / a;
+        var t_far = (-b + determinant_sqrt) / a;
 
         t = mix(t, (-b + determinant_sqrt) / a, f32(t < 0.0));
-
-        // if t < 0.0 {
-        //     t = (-b + determinant_sqrt) / a;
-        // }
+        t_far = mix(t_far, (-b - determinant_sqrt) / a, f32(t < 0.0));
 
         if t >= 0.0 {
             let point = ray.pos + ray.dir * t;
@@ -106,6 +107,7 @@ fn ray_sphere_intersect(ray: Ray, sphere: Sphere) -> Hit {
             hit.position = point;
             hit.normal = normal;
             hit.distance = t;
+            hit.far_distance = t_far;
             hit.front_face = front_face;
         }
     }
@@ -134,6 +136,7 @@ fn ray_plane_intersect(ray: Ray, plane: Plane) -> Hit {
     hit.position = ray.pos + ray.dir * t;
     hit.normal = plane.normal * -sign(denom);
     hit.distance = t;
+    hit.far_distance = 0.0;
     hit.front_face = true;
 
     return hit;
@@ -155,13 +158,15 @@ fn ray_aabb_intersect(ray: Ray, aabb: Aabb) -> Hit {
 
     if !hit.front_face { // ray inside box
         hit.success = true;
-        hit.distance = t_far;     
+        hit.distance = t_far; 
+        hit.far_distance = 0.0;    
         
         let eq = t2 == vec3(t_far);
         hit.normal = vec3(f32(eq.x), f32(eq.y), f32(eq.z)) * -sign(ray.dir);   
     } else {
         hit.success = !(t_near > t_far || t_far < 0.0);
         hit.distance = t_near;
+        hit.far_distance = 0.0;
 
         let eq = t1 == vec3(t_near);
         hit.normal = vec3(f32(eq.x), f32(eq.y), f32(eq.z)) * -sign(ray.dir);
@@ -211,6 +216,7 @@ fn ray_triangle_intersect(ray: Ray, triangle: Triangle) -> Hit {
 
     hit.success = true;
     hit.distance = t;
+    hit.far_distance = 0.0;
     hit.position = ray.pos + t * ray.dir;
     hit.normal = normalize(cross(edge1, edge2));
 
