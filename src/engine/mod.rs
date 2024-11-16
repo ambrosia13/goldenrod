@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use engine_state::EngineState;
+use profiler_state::ProfilerState;
 use render_state::RenderState;
 use renderer::Renderer;
 use winit::{
@@ -12,6 +13,7 @@ use winit::{
 
 pub mod engine_state;
 pub mod input;
+pub mod profiler_state;
 pub mod render_state;
 pub mod render_state_ext;
 pub mod renderer;
@@ -25,6 +27,7 @@ pub enum AppState<'a> {
         window: Arc<Window>,
         render_state: RenderState,
         engine_state: EngineState,
+        profiler_state: ProfilerState,
         renderer: Renderer<'a>,
     },
 }
@@ -56,12 +59,14 @@ impl<'a> ApplicationHandler for App<'a> {
 
             let render_state = pollster::block_on(RenderState::new(window.clone()));
             let engine_state = EngineState::new(&render_state);
-            let renderer = Renderer::init(&render_state);
+            let profiler_state = ProfilerState::new(60);
+            let renderer = Renderer::init(&render_state, &profiler_state);
 
             self.state = AppState::Init {
                 window,
                 render_state,
                 engine_state,
+                profiler_state,
                 renderer,
             };
 
@@ -79,6 +84,7 @@ impl<'a> ApplicationHandler for App<'a> {
             window,
             render_state,
             engine_state,
+            profiler_state,
             renderer,
         } = &mut self.state
         else {
@@ -104,8 +110,9 @@ impl<'a> ApplicationHandler for App<'a> {
                     }
                 };
 
-                engine_state.camera.fov += delta * 25.0;
-                engine_state.camera.fov = f32::clamp(engine_state.camera.fov, 30.0, 150.0);
+                engine_state.camera.movement_speed += delta * 5.0;
+                engine_state.camera.movement_speed =
+                    f32::clamp(engine_state.camera.movement_speed, 0.01, 10.0);
             }
 
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -137,7 +144,15 @@ impl<'a> ApplicationHandler for App<'a> {
                 };
 
                 engine_state.update();
-                renderer.update(render_state, engine_state, &mut encoder, &surface_texture);
+                profiler_state.update(engine_state.time.delta());
+
+                renderer.update(
+                    render_state,
+                    engine_state,
+                    profiler_state,
+                    &mut encoder,
+                    &surface_texture,
+                );
 
                 render_state.finish_frame(encoder, surface_texture);
 

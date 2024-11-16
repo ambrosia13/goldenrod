@@ -173,6 +173,7 @@ impl ObjectList {
             emission: Vec3::ZERO,
             roughness: 0.0,
             ior,
+            g: 0.0,
         };
 
         let mut radius = radius;
@@ -206,6 +207,25 @@ impl ObjectList {
         self.planes.clear();
         self.aabbs.clear();
 
+        let center = Vec3::new(0.0, 30.0, 0.0);
+
+        // self.push_sphere(Sphere::new(
+        //     center,
+        //     7.5,
+        //     Material {
+        //         albedo: Vec3::ONE,
+        //         ty: MaterialType::Volume,
+        //         g: 0.75,
+        //         ..Default::default()
+        //     },
+        // ));
+
+        self.push_sphere(Sphere::new(
+            center,
+            5.0,
+            Material::lambertian(Vec3::new(0.5, 1.0, 0.2)),
+        ));
+
         let mut rng = rand::thread_rng();
 
         let range = 20.0;
@@ -217,13 +237,13 @@ impl ObjectList {
                 rng.gen_range(-(range * 0.25)..(range * 0.25)),
             );
 
-            let radius = 10.0 * range / count as f32;
+            let radius = 1.0;
 
             self.push_sphere(Sphere::new(center, radius, Material::random()));
         }
     }
 
-    pub fn mesh_test_scene(&mut self) {
+    pub fn bvh_test_scene(&mut self) {
         self.version += 1;
 
         self.spheres.clear();
@@ -231,56 +251,15 @@ impl ObjectList {
         self.aabbs.clear();
         self.triangles.clear();
 
-        let lambert = Material {
-            albedo: Vec3::splat(1.0),
-            ty: MaterialType::Lambertian,
-            emission: Vec3::ZERO,
-            roughness: 0.0,
-            ior: 0.0,
-        };
-
-        self.push_plane(Plane::new(Vec3::Y, Vec3::ZERO - Vec3::Y * 1.0, lambert));
-
-        let mut triangles = util::gltf::load_triangles_from_gltf(
-            "assets/meshes/suzanne",
-            Vec3::new(0.0, 0.0, 0.0),
-            Quat::IDENTITY,
-            1.0,
-            lambert,
+        let triangles = util::gltf::load_triangles_from_glb(
+            "assets/meshes/car.glb",
+            Vec3::new(0.0, -1.5, -0.25),
+            Quat::from_rotation_x(-f32::consts::PI / 2.0),
+            0.1,
+            Material::default(),
         )
         .unwrap();
 
-        self.triangles.extend_from_slice(&triangles);
-
-        let mutate_vertices = |offset: Vec3, material: Material, triangles: &mut [Triangle]| {
-            triangles.par_iter_mut().for_each(|triangle| {
-                triangle.a += offset;
-                triangle.b += offset;
-                triangle.c += offset;
-                triangle.material = material;
-            });
-        };
-
-        let material = Material {
-            albedo: Vec3::new(0.5, 0.7, 1.0),
-            ty: MaterialType::Dielectric,
-            emission: Vec3::ZERO,
-            roughness: 0.1,
-            ior: 1.333,
-        };
-
-        mutate_vertices(Vec3::new(-3.0, 0.0, 0.0), material, &mut triangles);
-        self.triangles.extend_from_slice(&triangles);
-
-        let material = Material {
-            albedo: Vec3::new(1.0, 0.7, 0.5),
-            ty: MaterialType::Metal,
-            emission: Vec3::ZERO,
-            roughness: 0.1,
-            ior: 1.333,
-        };
-
-        mutate_vertices(Vec3::new(6.0, 0.0, 0.0), material, &mut triangles);
         self.triangles.extend_from_slice(&triangles);
     }
 
@@ -301,6 +280,7 @@ impl ObjectList {
                 emission: Vec3::ZERO,
                 roughness: 0.0,
                 ior: 0.0,
+                g: 0.0,
             },
         ));
 
@@ -313,6 +293,7 @@ impl ObjectList {
                 emission: Vec3::ZERO,
                 roughness: 0.1,
                 ior: 1.05,
+                g: 0.0,
             },
         ));
 

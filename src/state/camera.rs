@@ -14,6 +14,8 @@ pub struct Camera {
 
     pitch: f64,
     yaw: f64,
+
+    pub movement_speed: f32,
 }
 
 impl Camera {
@@ -26,6 +28,8 @@ impl Camera {
 
         near: f32,
         far: f32,
+
+        movement_speed: f32,
     ) -> Self {
         let (rotation, yaw, pitch) = Self::get_rotation_from_view_vector(position, look_at);
 
@@ -38,6 +42,7 @@ impl Camera {
             far,
             pitch,
             yaw,
+            movement_speed,
         }
     }
 
@@ -105,8 +110,6 @@ impl Camera {
     }
 
     pub fn update_position(&mut self, input: &Input, time: &Time) {
-        let movement_speed = 10.0;
-
         let mut velocity = Vec3::ZERO;
         let forward = self.forward_xz();
         let right = self.right_xz();
@@ -132,7 +135,7 @@ impl Camera {
         }
 
         velocity = velocity.normalize_or_zero();
-        self.position += velocity * movement_speed * time.delta().as_secs_f32();
+        self.position += velocity * self.movement_speed * time.delta().as_secs_f32();
     }
 
     fn get_rotation_from_view_vector(pos: Vec3, target: Vec3) -> (Quat, f64, f64) {

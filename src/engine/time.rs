@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 pub struct Time {
     last_frame: Instant,
     delta: Duration,
+    frame_count: u128,
 }
 
 impl Time {
@@ -11,6 +12,7 @@ impl Time {
         Self {
             last_frame: Instant::now(),
             delta: Duration::ZERO,
+            frame_count: 0,
         }
     }
 
@@ -20,9 +22,14 @@ impl Time {
 
         self.last_frame = new_instant;
         self.delta = delta;
+        self.frame_count += 1;
     }
 
     pub fn delta(&self) -> Duration {
         self.delta
+    }
+
+    pub fn frame_count(&self) -> u128 {
+        self.frame_count
     }
 }

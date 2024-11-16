@@ -5,20 +5,24 @@ use crate::renderer::{
     buffer::{
         bvh::BvhBuffer,
         object::{AabbListBuffer, PlaneListBuffer, SphereListBuffer, TriangleListBuffer},
+        profiler::{ProfilerBuffer, PROFILER_STEP_SIZE},
         screen::ScreenBuffer,
     },
+    debug::DebugRenderContext,
     final_pass::FinalRenderContext,
     raytrace::RaytraceRenderContext,
     screen_quad::ScreenQuad,
 };
 
-use super::{engine_state::EngineState, render_state::RenderState};
+use super::{engine_state::EngineState, profiler_state::ProfilerState, render_state::RenderState};
 
 pub const RECOMPILE_SHADERS_KEY: KeyCode = KeyCode::KeyR;
+pub const DEBUG_RENDER_ENABLE: KeyCode = KeyCode::KeyL;
 
 pub struct Renderer<'a> {
     pub raytrace_render_context: RaytraceRenderContext<'a>,
     pub bloom_render_context: BloomRenderContext<'a>,
+    pub debug_render_context: DebugRenderContext<'a>,
     pub final_render_context: FinalRenderContext,
 
     pub screen_quad: ScreenQuad,
@@ -31,10 +35,14 @@ pub struct Renderer<'a> {
     pub aabb_list_buffer: AabbListBuffer,
     pub triangle_list_buffer: TriangleListBuffer,
     pub bvh_buffer: BvhBuffer,
+
+    pub profiler_buffer: ProfilerBuffer,
+
+    pub debug_render_enabled: bool,
 }
 
 impl<'a> Renderer<'a> {
-    pub fn init(render_state: &RenderState) -> Self {
+    pub fn init(render_state: &RenderState, profiler_state: &ProfilerState) -> Self {
         let screen_buffer = ScreenBuffer::new(render_state);
 
         let object_buffer_version = 0;
@@ -44,6 +52,8 @@ impl<'a> Renderer<'a> {
         let triangle_list_buffer = TriangleListBuffer::new("Triangle List Buffer", render_state);
 
         let bvh_buffer = BvhBuffer::new(render_state);
+
+        let profiler_buffer = ProfilerBuffer::new("Debug Profiler Data Buffer", render_state);
 
         let screen_quad = ScreenQuad::new(render_state);
 
@@ -64,6 +74,13 @@ impl<'a> Renderer<'a> {
             &screen_buffer,
         );
 
+        let debug_render_context = DebugRenderContext::new(
+            render_state,
+            &bloom_render_context.bloom_texture,
+            &profiler_buffer,
+        );
+        let debug_render_enabled = true;
+
         let final_render_context = FinalRenderContext::new(
             render_state,
             &bloom_render_context.bloom_texture,
@@ -74,6 +91,7 @@ impl<'a> Renderer<'a> {
         Self {
             raytrace_render_context,
             bloom_render_context,
+            debug_render_context,
             final_render_context,
             screen_quad,
             screen_buffer,
@@ -83,6 +101,8 @@ impl<'a> Renderer<'a> {
             aabb_list_buffer,
             triangle_list_buffer,
             bvh_buffer,
+            profiler_buffer,
+            debug_render_enabled,
         }
     }
 
@@ -116,6 +136,17 @@ impl<'a> Renderer<'a> {
         }
     }
 
+    pub fn update_profiler_buffer(&mut self, profiler_state: &ProfilerState) {
+        let update_bindings = self.profiler_buffer.update(profiler_state);
+
+        if update_bindings {
+            self.debug_render_context.on_profiler_update(
+                &self.bloom_render_context.bloom_texture,
+                &self.profiler_buffer,
+            );
+        }
+    }
+
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.raytrace_render_context.resize(new_size);
         self.bloom_render_context.resize(
@@ -131,9 +162,14 @@ impl<'a> Renderer<'a> {
         &mut self,
         render_state: &RenderState,
         engine_state: &EngineState,
+        profiler_state: &ProfilerState,
         encoder: &mut wgpu::CommandEncoder,
         surface_texture: &wgpu::SurfaceTexture,
     ) {
+        if engine_state.input.keys.just_pressed(DEBUG_RENDER_ENABLE) {
+            self.debug_render_enabled = !self.debug_render_enabled;
+        }
+
         if engine_state.input.keys.just_pressed(RECOMPILE_SHADERS_KEY) {
             self.raytrace_render_context.recompile_shaders();
             self.bloom_render_context.recompile_shaders();
@@ -142,11 +178,20 @@ impl<'a> Renderer<'a> {
 
         self.update_object_buffers(engine_state);
 
+        if engine_state.time.frame_count() % PROFILER_STEP_SIZE as u128 == 0 {
+            self.update_profiler_buffer(profiler_state);
+        }
+
         self.screen_buffer
             .update(render_state, &engine_state.camera);
 
         self.raytrace_render_context.draw(encoder);
         self.bloom_render_context.draw(encoder);
+        self.debug_render_context.draw(
+            encoder,
+            &self.bloom_render_context.bloom_texture,
+            self.debug_render_enabled,
+        );
         self.final_render_context.draw(encoder, surface_texture);
     }
 }

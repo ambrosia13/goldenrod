@@ -29,13 +29,21 @@ impl EngineState {
         let input = Input::new();
         let time = Time::new();
 
-        let mut camera = Camera::new(Vec3::ZERO, Vec3::NEG_Z, 45.0, render_state.size, 1.0, 100.0);
+        let mut camera = Camera::new(
+            Vec3::ZERO,
+            Vec3::NEG_Z,
+            45.0,
+            render_state.size,
+            1.0,
+            100.0,
+            10.0,
+        );
 
         camera.position = Vec3::new(0.0, 0.0, 10.0);
         camera.look_at(Vec3::ZERO);
 
         let mut object_list = ObjectList::new();
-        object_list.mesh_test_scene();
+        object_list.bvh_test_scene();
 
         let bounding_volume_hierarchy = BoundingVolumeHierarchy::from_objects(&mut object_list);
 
@@ -50,7 +58,7 @@ impl EngineState {
 
     pub fn update(&mut self) {
         if self.input.keys.just_pressed(RANDOM_SCENE_KEY) {
-            self.object_list.mesh_test_scene();
+            self.object_list.bvh_test_scene();
         }
 
         if self.bounding_volume_hierarchy.version != self.object_list.version() {

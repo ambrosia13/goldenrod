@@ -15,9 +15,10 @@ pub mod pass;
 pub mod pipeline;
 pub mod shader;
 pub mod texture;
-pub mod timestamp;
 
 pub trait RenderStateExt {
+    fn as_gpu_state(&self) -> GpuState;
+
     fn device(&self) -> &wgpu::Device;
 
     fn queue(&self) -> &wgpu::Queue;
@@ -46,6 +47,10 @@ pub trait RenderStateExt {
 }
 
 impl RenderStateExt for GpuState {
+    fn as_gpu_state(&self) -> GpuState {
+        self.clone()
+    }
+
     fn device(&self) -> &wgpu::Device {
         &self.device
     }
@@ -243,7 +248,11 @@ impl RenderStateExt for GpuState {
     }
 }
 
-impl RenderStateExt for RenderState {
+impl RenderStateExt for &RenderState {
+    fn as_gpu_state(&self) -> GpuState {
+        self.get_gpu_state()
+    }
+
     fn device(&self) -> &wgpu::Device {
         &self.device
     }

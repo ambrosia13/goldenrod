@@ -12,7 +12,7 @@ use crate::{
     state::bvh::{BoundingVolumeHierarchy, BvhNode},
 };
 
-use super::MIN_STORAGE_ARRAY_CAPACITY;
+use super::MIN_DYNAMIC_BUFFER_CAPACITY;
 
 #[derive(AsStd140, AsStd430)]
 pub struct BvhUniform {
@@ -31,7 +31,7 @@ impl Default for BvhUniform {
     fn default() -> Self {
         Self {
             num_nodes: 0,
-            nodes: Vec::with_capacity(MIN_STORAGE_ARRAY_CAPACITY),
+            nodes: Vec::with_capacity(MIN_DYNAMIC_BUFFER_CAPACITY),
         }
     }
 }

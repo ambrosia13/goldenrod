@@ -54,7 +54,7 @@ pub struct BloomRenderContext<'a> {
 }
 
 impl<'a> BloomRenderContext<'a> {
-    pub const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rg11b10Float;
+    pub const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
     pub const ADDRESS_MODE: wgpu::AddressMode = wgpu::AddressMode::ClampToBorder;
 
     pub fn new(
@@ -177,7 +177,9 @@ impl<'a> BloomRenderContext<'a> {
             mips: mip_levels,
             address_mode: BloomRenderContext::ADDRESS_MODE,
             filter_mode: wgpu::FilterMode::Linear,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_DST,
         };
 
         (
