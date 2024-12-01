@@ -55,19 +55,25 @@ fn sample_tent(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, resolution: v
 }
 
 fn sample_weight(current_lod: u32, max_lod: u32) -> f32 {
-    // // constant weight
-    return 1.0 / f32(max_lod);
+    // constant weight
+    // return 1.0 / f32(max_lod);
 
     // exponential weight
+    let x = f32(current_lod);
+    let n = f32(max_lod);
+
+    return exp(-x / n) / ((1.0 - 1.0 / E) * n);
+
+    // linear weight
     // let x = f32(current_lod);
     // let n = f32(max_lod);
+    // let m = (n - 2.0) / 2.0 + 4.0;
 
-    // return exp(-x / n) / ((1.0 - 1.0 / E) * n);
+    // return max(0.0, m - x) / n;
 
-    // // linear weight
-    // let x = f32(current_lod);
-    // let n = f32(max_lod);
-    // let m = (n - 2.0) / 2.0 + 2.0;
-
-    // return (m - x) / n;
+    // if current_lod <= 5 {
+    //     return 1.0 / 5.0;
+    // } else {
+    //     return 0.0;
+    // }
 }
