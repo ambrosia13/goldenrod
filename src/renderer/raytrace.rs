@@ -269,8 +269,8 @@ impl<'a> RaytraceRenderContext<'a> {
         let cubemap = texture::create_cubemap_texture(
             gpu_state,
             "Sky Cubemap",
-            "assets/textures/cubemap/meadow",
-            4096,
+            "assets/textures/cubemap/paris",
+            2048,
             wgpu::TextureFormat::Rgba32Float,
             wgpu::TextureUsages::TEXTURE_BINDING,
         )
