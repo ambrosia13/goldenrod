@@ -33,33 +33,39 @@ impl FinalRenderContext {
         screen_buffer: &ScreenBuffer,
         screen_quad: &ScreenQuad,
     ) -> Self {
-        let texture_binding = render_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureView {
-                    texture: input_texture,
-                    texture_view: &input_texture.view(0..1, 0..1),
+        let texture_binding = Binding::new(
+            &render_state,
+            &[
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureView {
+                        texture: input_texture,
+                        texture_view: &input_texture.view(0..1, 0..1),
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureSampler {
-                    sampler_type: wgpu::SamplerBindingType::Filtering,
-                    texture: input_texture,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureSampler {
+                        sampler_type: wgpu::SamplerBindingType::Filtering,
+                        texture: input_texture,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ]);
+            ],
+        );
 
-        let screen_binding = render_state.create_binding(&[BindingEntry {
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            binding_data: BindingData::Buffer {
-                buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                buffer: &screen_buffer.buffer,
-            },
-            count: None,
-        }]);
+        let screen_binding = Binding::new(
+            &render_state,
+            &[BindingEntry {
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                binding_data: BindingData::Buffer {
+                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                    buffer: &screen_buffer.buffer,
+                },
+                count: None,
+            }],
+        );
 
         let shader = render_state.create_shader("assets/shaders/final.wgsl");
 
@@ -117,24 +123,27 @@ impl FinalRenderContext {
     }
 
     fn update_input_texture(&mut self, input_texture: &Texture) {
-        self.texture_binding = self.gpu_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureView {
-                    texture: input_texture,
-                    texture_view: &input_texture.view(0..1, 0..1),
+        self.texture_binding = Binding::new(
+            &self.gpu_state,
+            &[
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureView {
+                        texture: input_texture,
+                        texture_view: &input_texture.view(0..1, 0..1),
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureSampler {
-                    sampler_type: wgpu::SamplerBindingType::Filtering,
-                    texture: input_texture,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureSampler {
+                        sampler_type: wgpu::SamplerBindingType::Filtering,
+                        texture: input_texture,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ]);
+            ],
+        );
     }
 
     // since the input texture is recreated when the screen is resized, so does the binding for it in this pass.

@@ -183,9 +183,13 @@ impl<'a> BloomRenderContext<'a> {
         };
 
         (
-            gpu_state.create_texture("Bloom Downsample Texture", config.clone()),
-            gpu_state.create_texture("Bloom Upsample Texture", config.clone()),
-            gpu_state.create_texture("Bloom Texture", TextureConfig { mips: 1, ..config }),
+            Texture::new(gpu_state, "Bloom Downsample Texture", config.clone()),
+            Texture::new(gpu_state, "Bloom Upsample Texture", config.clone()),
+            Texture::new(
+                gpu_state,
+                "Bloom Texture",
+                TextureConfig { mips: 1, ..config },
+            ),
         )
     }
 
@@ -200,40 +204,77 @@ impl<'a> BloomRenderContext<'a> {
         let mut downsample_bindings = Vec::with_capacity(mip_levels as usize);
         let mut upsample_bindings = Vec::with_capacity(mip_levels as usize);
 
-        downsample_bindings.push(gpu_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureView {
-                    texture: input_texture,
-                    texture_view: &input_texture.view(0..1, 0..1),
+        downsample_bindings.push(Binding::new(
+            gpu_state,
+            &[
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureView {
+                        texture: input_texture,
+                        texture_view: &input_texture.view(0..1, 0..1),
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureSampler {
-                    sampler_type: wgpu::SamplerBindingType::Filtering,
-                    texture: input_texture,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureSampler {
+                        sampler_type: wgpu::SamplerBindingType::Filtering,
+                        texture: input_texture,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &screen_buffer.buffer,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::Buffer {
+                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                        buffer: &screen_buffer.buffer,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ]));
+            ],
+        ));
 
         for target_mip in 1..mip_levels {
-            downsample_bindings.push(gpu_state.create_binding(&[
+            downsample_bindings.push(Binding::new(
+                gpu_state,
+                &[
+                    BindingEntry {
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        binding_data: BindingData::TextureView {
+                            texture: downsample_texture,
+                            texture_view: &downsample_texture
+                                .view((target_mip - 1)..target_mip, 0..1),
+                        },
+                        count: None,
+                    },
+                    BindingEntry {
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        binding_data: BindingData::TextureSampler {
+                            sampler_type: wgpu::SamplerBindingType::Filtering,
+                            texture: downsample_texture,
+                        },
+                        count: None,
+                    },
+                    BindingEntry {
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        binding_data: BindingData::Buffer {
+                            buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                            buffer: &screen_buffer.buffer,
+                        },
+                        count: None,
+                    },
+                ],
+            ));
+        }
+
+        let first_upsample_binding = Binding::new(
+            gpu_state,
+            &[
                 BindingEntry {
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     binding_data: BindingData::TextureView {
                         texture: downsample_texture,
-                        texture_view: &downsample_texture.view((target_mip - 1)..target_mip, 0..1),
+                        texture_view: &downsample_texture.view((mip_levels - 1)..mip_levels, 0..1),
                     },
                     count: None,
                 },
@@ -245,116 +286,96 @@ impl<'a> BloomRenderContext<'a> {
                     },
                     count: None,
                 },
-                BindingEntry {
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: BindingData::Buffer {
-                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                        buffer: &screen_buffer.buffer,
-                    },
-                    count: None,
-                },
-            ]));
-        }
-
-        let first_upsample_binding = gpu_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureView {
-                    texture: downsample_texture,
-                    texture_view: &downsample_texture.view((mip_levels - 1)..mip_levels, 0..1),
-                },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureSampler {
-                    sampler_type: wgpu::SamplerBindingType::Filtering,
-                    texture: downsample_texture,
-                },
-                count: None,
-            },
-        ]);
+            ],
+        );
 
         for target_mip in 0..(mip_levels - 1) {
-            upsample_bindings.push(gpu_state.create_binding(&[
-                BindingEntry {
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: BindingData::TextureView {
-                        texture: upsample_texture,
-                        texture_view:
-                            &upsample_texture.view((target_mip + 1)..(target_mip + 2), 0..1),
+            upsample_bindings.push(Binding::new(
+                gpu_state,
+                &[
+                    BindingEntry {
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        binding_data: BindingData::TextureView {
+                            texture: upsample_texture,
+                            texture_view: &upsample_texture
+                                .view((target_mip + 1)..(target_mip + 2), 0..1),
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                BindingEntry {
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: BindingData::TextureSampler {
-                        sampler_type: wgpu::SamplerBindingType::Filtering,
-                        texture: upsample_texture,
+                    BindingEntry {
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        binding_data: BindingData::TextureSampler {
+                            sampler_type: wgpu::SamplerBindingType::Filtering,
+                            texture: upsample_texture,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                BindingEntry {
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: BindingData::TextureView {
-                        texture: downsample_texture,
-                        texture_view: &downsample_texture.view(target_mip..(target_mip + 1), 0..1),
+                    BindingEntry {
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        binding_data: BindingData::TextureView {
+                            texture: downsample_texture,
+                            texture_view: &downsample_texture
+                                .view(target_mip..(target_mip + 1), 0..1),
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                BindingEntry {
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: BindingData::TextureSampler {
-                        sampler_type: wgpu::SamplerBindingType::Filtering,
-                        texture: downsample_texture,
+                    BindingEntry {
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        binding_data: BindingData::TextureSampler {
+                            sampler_type: wgpu::SamplerBindingType::Filtering,
+                            texture: downsample_texture,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                BindingEntry {
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: BindingData::Buffer {
-                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                        buffer: &screen_buffer.buffer,
+                    BindingEntry {
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        binding_data: BindingData::Buffer {
+                            buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                            buffer: &screen_buffer.buffer,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-            ]))
+                ],
+            ))
         }
 
-        let merge_binding = gpu_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureView {
-                    texture: input_texture,
-                    texture_view: &input_texture.view(0..1, 0..1),
+        let merge_binding = Binding::new(
+            gpu_state,
+            &[
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureView {
+                        texture: input_texture,
+                        texture_view: &input_texture.view(0..1, 0..1),
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureSampler {
-                    sampler_type: wgpu::SamplerBindingType::Filtering,
-                    texture: input_texture,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureSampler {
+                        sampler_type: wgpu::SamplerBindingType::Filtering,
+                        texture: input_texture,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureView {
-                    texture: upsample_texture,
-                    texture_view: &upsample_texture.view(0..1, 0..1),
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureView {
+                        texture: upsample_texture,
+                        texture_view: &upsample_texture.view(0..1, 0..1),
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: BindingData::TextureSampler {
-                    sampler_type: wgpu::SamplerBindingType::Filtering,
-                    texture: upsample_texture,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    binding_data: BindingData::TextureSampler {
+                        sampler_type: wgpu::SamplerBindingType::Filtering,
+                        texture: upsample_texture,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ]);
+            ],
+        );
 
         (
             downsample_bindings,

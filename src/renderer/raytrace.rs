@@ -61,7 +61,8 @@ impl<'a> RaytraceRenderContext<'a> {
             usage: wgpu::TextureUsages::empty(),
         };
 
-        let color_texture = gpu_state.create_texture(
+        let color_texture = Texture::new(
+            &gpu_state,
             "Raytrace Color Texture",
             TextureConfig {
                 usage: wgpu::TextureUsages::STORAGE_BINDING
@@ -71,7 +72,8 @@ impl<'a> RaytraceRenderContext<'a> {
             },
         );
 
-        let color_texture_copy = gpu_state.create_texture(
+        let color_texture_copy = Texture::new(
+            &gpu_state,
             "Raytrace Color Texture Copy",
             TextureConfig {
                 usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
@@ -82,14 +84,17 @@ impl<'a> RaytraceRenderContext<'a> {
         let (wavelength_to_xyz_lut, rgb_to_spectral_intensity_lut, cubemap) =
             Self::load_luts(&gpu_state);
 
-        let screen_binding = gpu_state.create_binding(&[BindingEntry {
-            visibility: wgpu::ShaderStages::COMPUTE,
-            binding_data: BindingData::Buffer {
-                buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                buffer: &screen_buffer.buffer,
-            },
-            count: None,
-        }]);
+        let screen_binding = Binding::new(
+            &gpu_state,
+            &[BindingEntry {
+                visibility: wgpu::ShaderStages::COMPUTE,
+                binding_data: BindingData::Buffer {
+                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                    buffer: &screen_buffer.buffer,
+                },
+                count: None,
+            }],
+        );
 
         let object_binding = Self::create_object_binding(
             &gpu_state,
@@ -100,42 +105,45 @@ impl<'a> RaytraceRenderContext<'a> {
             bvh_buffer,
         );
 
-        let lut_binding = gpu_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::TextureStorage {
-                    access: wgpu::StorageTextureAccess::ReadOnly,
-                    texture_view: &wavelength_to_xyz_lut.view(0..1, 0..1),
-                    texture: &wavelength_to_xyz_lut,
+        let lut_binding = Binding::new(
+            &gpu_state,
+            &[
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::TextureStorage {
+                        access: wgpu::StorageTextureAccess::ReadOnly,
+                        texture_view: &wavelength_to_xyz_lut.view(0..1, 0..1),
+                        texture: &wavelength_to_xyz_lut,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::TextureStorage {
-                    access: wgpu::StorageTextureAccess::ReadOnly,
-                    texture_view: &rgb_to_spectral_intensity_lut.view(0..1, 0..1),
-                    texture: &rgb_to_spectral_intensity_lut,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::TextureStorage {
+                        access: wgpu::StorageTextureAccess::ReadOnly,
+                        texture_view: &rgb_to_spectral_intensity_lut.view(0..1, 0..1),
+                        texture: &rgb_to_spectral_intensity_lut,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::TextureView {
-                    texture: &cubemap,
-                    texture_view: &cubemap.view(0..1, 0..6),
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::TextureView {
+                        texture: &cubemap,
+                        texture_view: &cubemap.view(0..1, 0..6),
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::TextureSampler {
-                    sampler_type: wgpu::SamplerBindingType::Filtering,
-                    texture: &cubemap,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::TextureSampler {
+                        sampler_type: wgpu::SamplerBindingType::Filtering,
+                        texture: &cubemap,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ]);
+            ],
+        );
 
         let texture_binding =
             Self::create_texture_binding(&gpu_state, &color_texture, &color_texture_copy);
@@ -202,7 +210,8 @@ impl<'a> RaytraceRenderContext<'a> {
         let lut_size =
             wavelength_to_xyz_bytes.len() as u32 / (std::mem::size_of::<f32>() as u32 * 4);
 
-        let wavelength_to_xyz_lut = gpu_state.create_texture(
+        let wavelength_to_xyz_lut = Texture::new(
+            gpu_state,
             "Wavelength to XYZ LUT",
             TextureConfig {
                 ty: TextureType::Texture1d,
@@ -236,7 +245,8 @@ impl<'a> RaytraceRenderContext<'a> {
         let lut_size =
             rgb_to_spectral_intensity_bytes.len() as u32 / (std::mem::size_of::<f32>() as u32 * 4);
 
-        let rgb_to_spectral_intensity_lut = gpu_state.create_texture(
+        let rgb_to_spectral_intensity_lut = Texture::new(
+            gpu_state,
             "RGB to Spectral Intensity",
             TextureConfig {
                 ty: TextureType::Texture1d,
@@ -288,26 +298,29 @@ impl<'a> RaytraceRenderContext<'a> {
         texture: &Texture,
         texture_copy: &Texture,
     ) -> Binding {
-        gpu_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::TextureStorage {
-                    access: wgpu::StorageTextureAccess::WriteOnly,
-                    texture_view: &texture.view(0..1, 0..1),
-                    texture,
+        Binding::new(
+            gpu_state,
+            &[
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::TextureStorage {
+                        access: wgpu::StorageTextureAccess::WriteOnly,
+                        texture_view: &texture.view(0..1, 0..1),
+                        texture,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::TextureStorage {
-                    access: wgpu::StorageTextureAccess::ReadOnly,
-                    texture_view: &texture_copy.view(0..1, 0..1),
-                    texture: texture_copy,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::TextureStorage {
+                        access: wgpu::StorageTextureAccess::ReadOnly,
+                        texture_view: &texture_copy.view(0..1, 0..1),
+                        texture: texture_copy,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ])
+            ],
+        )
     }
 
     fn create_object_binding(
@@ -318,48 +331,51 @@ impl<'a> RaytraceRenderContext<'a> {
         triangle_list_buffer: &TriangleListBuffer,
         bvh_buffer: &BvhBuffer,
     ) -> Binding {
-        gpu_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &sphere_list_buffer.buffer,
+        Binding::new(
+            gpu_state,
+            &[
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::Buffer {
+                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                        buffer: &sphere_list_buffer.buffer,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &plane_list_buffer.buffer,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::Buffer {
+                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                        buffer: &plane_list_buffer.buffer,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &aabb_list_buffer.buffer,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::Buffer {
+                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                        buffer: &aabb_list_buffer.buffer,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &triangle_list_buffer.buffer,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::Buffer {
+                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                        buffer: &triangle_list_buffer.buffer,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &bvh_buffer.buffer,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::Buffer {
+                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                        buffer: &bvh_buffer.buffer,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ])
+            ],
+        )
     }
 
     fn recreate_pipeline(&mut self) {

@@ -107,6 +107,24 @@ pub struct Texture<'a> {
 }
 
 impl<'a> Texture<'a> {
+    pub fn new(gpu_state: &impl RenderStateExt, name: &'a str, config: TextureConfig) -> Self {
+        let texture_descriptor = config.texture_descriptor(name);
+        let sampler_descriptor = config.sampler_descriptor(name);
+
+        let texture = gpu_state.device().create_texture(&texture_descriptor);
+        let sampler = gpu_state.device().create_sampler(&sampler_descriptor);
+
+        Texture {
+            name,
+            ty: config.ty,
+            texture_descriptor,
+            sampler_descriptor,
+            texture,
+            sampler,
+            gpu_state: gpu_state.as_gpu_state(),
+        }
+    }
+
     pub fn resize(&mut self, new_width: u32, new_height: u32) {
         self.texture_descriptor.size.width = new_width;
         self.texture_descriptor.size.height = new_height;
@@ -192,7 +210,7 @@ pub fn create_cubemap_texture<'a, P: AsRef<Path> + Debug>(
 
     let bytes_per_pixel = format.target_pixel_byte_cost().unwrap();
 
-    let texture = gpu_state.create_texture(
+    let texture = Texture::new(gpu_state,
         name,
         TextureConfig {
             ty: TextureType::TextureCube,

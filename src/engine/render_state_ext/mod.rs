@@ -23,10 +23,6 @@ pub trait RenderStateExt {
 
     fn queue(&self) -> &wgpu::Queue;
 
-    fn create_binding(&self, entries: &[BindingEntry]) -> Binding;
-
-    fn create_texture<'a>(&self, name: &'a str, config: TextureConfig) -> Texture<'a>;
-
     fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader;
 
     fn create_pipeline_layout(&self, config: PipelineLayoutConfig) -> wgpu::PipelineLayout;
@@ -55,66 +51,6 @@ impl RenderStateExt for GpuState {
 
     fn queue(&self) -> &wgpu::Queue {
         &self.queue
-    }
-
-    fn create_binding(&self, entries: &[BindingEntry]) -> Binding {
-        let entries: Vec<_> = entries
-            .iter()
-            .enumerate()
-            .map(|(index, entry)| {
-                (
-                    wgpu::BindGroupEntry {
-                        binding: index as u32,
-                        resource: entry.binding_data.binding_resource(),
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: index as u32,
-                        visibility: entry.visibility,
-                        ty: entry.binding_data.binding_type(),
-                        count: entry.count,
-                    },
-                )
-            })
-            .collect();
-
-        let bind_group_entries: Vec<_> = entries.iter().map(|(bge, _)| bge.clone()).collect();
-        let bind_group_layout_entries: Vec<_> = entries.iter().map(|&(_, bgle)| bgle).collect();
-
-        let bind_group_layout =
-            self.device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: None,
-                    entries: &bind_group_layout_entries,
-                });
-
-        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: None,
-            layout: &bind_group_layout,
-            entries: &bind_group_entries,
-        });
-
-        Binding {
-            bind_group,
-            bind_group_layout,
-        }
-    }
-
-    fn create_texture<'a>(&self, name: &'a str, config: TextureConfig) -> Texture<'a> {
-        let texture_descriptor = config.texture_descriptor(name);
-        let sampler_descriptor = config.sampler_descriptor(name);
-
-        let texture = self.device.create_texture(&texture_descriptor);
-        let sampler = self.device.create_sampler(&sampler_descriptor);
-
-        Texture {
-            name,
-            ty: config.ty,
-            texture_descriptor,
-            sampler_descriptor,
-            texture,
-            sampler,
-            gpu_state: self.clone(),
-        }
     }
 
     fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader {
@@ -215,14 +151,6 @@ impl RenderStateExt for &RenderState {
 
     fn queue(&self) -> &wgpu::Queue {
         &self.queue
-    }
-
-    fn create_binding(&self, entries: &[BindingEntry]) -> Binding {
-        self.get_gpu_state().create_binding(entries)
-    }
-
-    fn create_texture<'a>(&self, name: &'a str, config: TextureConfig) -> Texture<'a> {
-        self.get_gpu_state().create_texture(name, config)
     }
 
     fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader {

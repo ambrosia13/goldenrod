@@ -91,24 +91,27 @@ impl ScreenQuad {
             },
         );
 
-        let vertex_index_binding = render_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::VERTEX,
-                binding_data: BindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &vertex_storage_buffer,
+        let vertex_index_binding = Binding::new(
+            &render_state,
+            &[
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    binding_data: BindingData::Buffer {
+                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                        buffer: &vertex_storage_buffer,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::VERTEX,
-                binding_data: BindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &index_storage_buffer,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    binding_data: BindingData::Buffer {
+                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                        buffer: &index_storage_buffer,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ]);
+            ],
+        );
 
         let vertex_shader = render_state.create_shader("assets/shaders/frame_vertex.wgsl");
 

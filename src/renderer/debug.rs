@@ -76,7 +76,7 @@ impl<'a> DebugRenderContext<'a> {
     }
 
     fn create_texture<'b>(gpu_state: &GpuState, input_texture: &Texture) -> Texture<'b> {
-        gpu_state.create_texture(
+        Texture::new(gpu_state,
             "Debug Texture",
             TextureConfig {
                 ty: TextureType::Texture2d,
@@ -98,25 +98,28 @@ impl<'a> DebugRenderContext<'a> {
         texture: &Texture,
         profiler_buffer: &ProfilerBuffer,
     ) -> Binding {
-        gpu_state.create_binding(&[
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::TextureStorage {
-                    access: wgpu::StorageTextureAccess::WriteOnly,
-                    texture_view: &texture.view(0..1, 0..1),
-                    texture,
+        Binding::new(
+            gpu_state,
+            &[
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::TextureStorage {
+                        access: wgpu::StorageTextureAccess::WriteOnly,
+                        texture_view: &texture.view(0..1, 0..1),
+                        texture,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            BindingEntry {
-                visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: BindingData::Buffer {
-                    buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
-                    buffer: &profiler_buffer.buffer,
+                BindingEntry {
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    binding_data: BindingData::Buffer {
+                        buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
+                        buffer: &profiler_buffer.buffer,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ])
+            ],
+        )
     }
 
     pub fn on_profiler_update(
