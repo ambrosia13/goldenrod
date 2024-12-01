@@ -23,7 +23,9 @@ pub struct BvhUniform {
 impl BvhUniform {
     pub fn update(&mut self, bvh: &BoundingVolumeHierarchy) {
         self.num_nodes = bvh.nodes().len() as u32;
-        self.nodes = bvh.nodes().to_vec();
+
+        self.nodes = Vec::with_capacity(MIN_DYNAMIC_BUFFER_CAPACITY);
+        self.nodes.extend_from_slice(bvh.nodes());
     }
 }
 

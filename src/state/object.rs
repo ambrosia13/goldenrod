@@ -1,11 +1,12 @@
 use core::f32;
+use std::path::Path;
 
 use glam::{Quat, Vec2, Vec3};
 use gpu_bytes::{AsStd430, Std430Bytes};
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use rand::Rng;
 
-use crate::util;
+use crate::util::{self, gltf::GltfLoadError};
 
 use super::{
     bvh::{AsBoundingVolume, BoundingVolume},
@@ -48,10 +49,7 @@ impl Sphere {
 
 impl AsBoundingVolume for Sphere {
     fn bounding_volume(&self) -> BoundingVolume {
-        BoundingVolume {
-            min: self.center - self.radius,
-            max: self.center + self.radius,
-        }
+        BoundingVolume::new(self.center - self.radius, self.center + self.radius)
     }
 }
 
@@ -103,10 +101,7 @@ impl Aabb {
 
 impl AsBoundingVolume for Aabb {
     fn bounding_volume(&self) -> BoundingVolume {
-        BoundingVolume {
-            min: self.min,
-            max: self.max,
-        }
+        BoundingVolume::new(self.min, self.max)
     }
 }
 
@@ -120,6 +115,7 @@ pub struct Triangle {
     pub uv_c: Vec2,
     pub material: Material,
     pub bounds: BoundingVolume,
+    pub center: Vec3,
 }
 
 impl AsStd430 for Triangle {
@@ -158,10 +154,8 @@ impl Triangle {
             uv_b,
             uv_c,
             material,
-            bounds: BoundingVolume {
-                min: a.min(b.min(c)),
-                max: a.max(b.max(c)),
-            },
+            bounds: BoundingVolume::new(a.min(b.min(c)), a.max(b.max(c))),
+            center: (a + b + c) / 3.0,
         }
     }
 
@@ -171,8 +165,14 @@ impl Triangle {
 }
 
 impl AsBoundingVolume for Triangle {
+    #[inline(always)]
     fn bounding_volume(&self) -> BoundingVolume {
         self.bounds
+    }
+
+    #[inline(always)]
+    fn center(&self) -> Vec3 {
+        self.center
     }
 }
 
@@ -284,15 +284,21 @@ impl ObjectList {
         self.triangles.clear();
 
         let triangles = util::gltf::load_triangles_from_glb(
-            "assets/meshes/car.glb",
+            "assets/meshes/dragon.glb",
             Vec3::new(0.0, -1.5, -0.25),
-            Quat::from_rotation_y(f32::consts::PI) * Quat::from_rotation_x(-f32::consts::PI / 2.0),
-            0.1,
-            Material::metal(Vec3::new(1.0, 0.75, 0.2), 0.05),
+            Quat::from_rotation_y(-f32::consts::PI) * Quat::from_rotation_x(f32::consts::PI / 2.0),
+            0.5,
+            Material::dielectric(Vec3::ONE, 0.0, 2.4),
         )
         .unwrap();
 
         self.triangles.extend_from_slice(&triangles);
+
+        // self.planes.push(Plane::new(
+        //     Vec3::Y,
+        //     Vec3::new(0.0, -3.0, 0.0),
+        //     Material::default(),
+        // ));
     }
 
     pub fn random_scene(&mut self) {
@@ -330,7 +336,7 @@ impl ObjectList {
         ));
 
         let region_size = 7;
-        let regions_radius = 2;
+        let regions_radius = 3;
 
         for x in -regions_radius..=regions_radius {
             for z in -regions_radius..=regions_radius {
@@ -425,6 +431,20 @@ impl ObjectList {
     pub fn push_triangle(&mut self, triangle: Triangle) {
         self.version += 1;
         self.triangles.push(triangle);
+    }
+
+    pub fn push_mesh<P: AsRef<Path>>(&mut self, path: P) -> Result<(), GltfLoadError> {
+        self.version += 1;
+
+        let triangles = util::gltf::load_triangles_from_glb(
+            "assets/meshes/dragon.glb",
+            Vec3::new(0.0, -1.5, -0.25),
+            Quat::from_rotation_y(f32::consts::PI) * Quat::from_rotation_x(f32::consts::PI / 2.0),
+            0.5,
+            Material::dielectric(Vec3::new(1.0, 0.75, 0.2), 0.05, 1.5),
+        )?;
+
+        Ok(())
     }
 
     pub fn spheres(&self) -> &[Sphere] {

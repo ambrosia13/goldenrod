@@ -70,19 +70,19 @@ var color_texture: texture_storage_2d<rgba32float, write>;
 var color_texture_copy: texture_storage_2d<rgba32float, read>;
 
 fn albedo(hit: Hit) -> vec3<f32> {
-    if any(hit.uv < vec2(0.0)) {
+    //if any(hit.uv < vec2(0.0)) {
         return hit.material.albedo;
-    } else {
-        return vec3(clamp(hit.uv, vec2(0.0), vec2(1.0)), 0.01);
-    }
+    //} else {
+        //return vec3(clamp(hit.uv, vec2(0.0), vec2(1.0)), 0.01);
+    //}
 }
 
 fn sky(ray: Ray) -> vec3<f32> {
     var color = textureSampleLevel(sky_cubemap_texture, sky_cubemap_sampler, ray.dir, 0.0).rgb;
-    color = pow(color, vec3(2.2));
+    //color = pow(color, vec3(2.2));
     let color_length = length(color);
 
-    color = normalize(color) * min(1000.0, color_length);
+    color = normalize(color) * min(10000.0, color_length);
 
     return color;
 }
@@ -250,7 +250,7 @@ fn material_hit_result(hit: Hit, ray: Ray, stack: ptr<function, Stack>, waveleng
             ior = current_ior / previous_ior;
         }
 
-        ior = ior + -0.0001 * (wavelength - 550.0);
+        ior = ior - ((wavelength - 550.0) * 0.0001);
 
         let cannot_refract = ior * sin_theta > 1.0;
 
@@ -381,37 +381,51 @@ fn compute(
 
     var color = vec3(0.0);
 
-    // let rays = 1;
-    // for (var i = 0; i < rays; i++) {
-    //     let wavelength = generate_wavelength();
-    //     color += pathtrace(ray, wavelength) / f32(rays);
-    // }
-
-    let hit = raytrace_bvh(ray);
-    if hit.success {
-        color = albedo(hit);
-    }
+    let should_accumulate = 
+        all(screen.camera.position == screen.camera.previous_position) &&
+        all(screen.camera.view == screen.camera.previous_view) && 
+        all(screen.camera.projection_matrix[0] == screen.camera.previous_projection_matrix[0]);
 
     let sample = textureLoad(color_texture_copy, global_id.xy);
     let previous_color = sample.rgb;
     var frame_age = sample.a;
 
-    let should_accumulate = 
-        all(screen.camera.position == screen.camera.previous_position) &&
-        all(screen.camera.view == screen.camera.previous_view) && 
-        all(screen.camera.projection_matrix[0] == screen.camera.previous_projection_matrix[0]);
     
     if !should_accumulate {
         frame_age = 0.0;
     }
 
-    color = mix(previous_color, color, 1.0 / (frame_age + 1.0));
+    let debug_render_in_movement = false;
+    let accumulation_threshold = 100.0;
 
+    // Path trace
+    if !debug_render_in_movement || frame_age > accumulation_threshold  {
+        let rays = 1;
+        for (var i = 0; i < rays; i++) {
+            let wavelength = generate_wavelength();
+            color += pathtrace(ray, wavelength) / f32(rays);
+        }
 
-    // let hit = raytrace_all(ray);
-    // if hit.success {
-    //     color = hit.material.albedo;
-    // }
+        if !debug_render_in_movement || frame_age > accumulation_threshold + 1.0 {
+            var accumulated_frame_age = frame_age - accumulation_threshold;
+
+            if !debug_render_in_movement {
+                accumulated_frame_age = frame_age;
+            }
+
+            color = mix(previous_color, color, 1.0 / (accumulated_frame_age + 1.0));
+        }
+    }
+    // Debug render 
+    else {
+        let hit = raytrace_all(ray);
+        if hit.success {
+            let shading_factor = max(0.0, dot(hit.normal, vec3(0.0, 1.0, 0.0))) * 0.5 + 0.5;
+            color = hit.material.albedo * shading_factor;
+        } else {
+            color = sky(ray);
+        }
+    }
 
     textureStore(color_texture, global_id.xy, vec4(color, frame_age + 1.0));
 }

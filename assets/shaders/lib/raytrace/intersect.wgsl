@@ -232,7 +232,7 @@ fn ray_triangle_intersect(ray: Ray, triangle: Triangle) -> Hit {
     hit.front_face = dir_dot_normal < 0.0;
     hit.normal *= -sign(dir_dot_normal);
 
-    hit.uv = triangle.uv_a;
+    hit.uv = vec2(-1.0);
 
     return hit;
 }

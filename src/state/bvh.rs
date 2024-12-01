@@ -1,4 +1,5 @@
-use glam::{FloatExt, Vec3};
+use glam::Vec3;
+use gpu_bytes::{AsStd140, AsStd430, Std140Bytes, Std430Bytes};
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
@@ -6,23 +7,63 @@ use super::object::ObjectList;
 
 pub trait AsBoundingVolume {
     fn bounding_volume(&self) -> BoundingVolume;
+
+    fn center(&self) -> Vec3 {
+        self.bounding_volume().center()
+    }
 }
 
-#[derive(Default, Clone, Copy, Debug, AsStd140, AsStd430)]
+#[derive(Default, Clone, Copy, Debug)]
 pub struct BoundingVolume {
     pub min: Vec3,
     pub max: Vec3,
+    pub empty: bool,
+}
+
+impl AsStd140 for BoundingVolume {
+    fn as_std140(&self) -> Std140Bytes {
+        let mut buf = Std140Bytes::new();
+
+        buf.write(&self.min);
+        buf.write(&self.max);
+        buf.align();
+
+        buf
+    }
+}
+
+impl AsStd430 for BoundingVolume {
+    fn as_std430(&self) -> Std430Bytes {
+        let mut buf = Std430Bytes::new();
+
+        buf.write(&self.min);
+        buf.write(&self.max);
+        buf.align();
+
+        buf
+    }
 }
 
 impl BoundingVolume {
+    pub const EMPTY: Self = Self {
+        min: Vec3::ZERO,
+        max: Vec3::ZERO,
+        empty: true,
+    };
+
     pub fn new(min: Vec3, max: Vec3) -> Self {
-        Self { min, max }
+        Self {
+            min,
+            max,
+            empty: false,
+        }
     }
 
     pub fn from_point(point: Vec3) -> Self {
         Self {
             min: point,
             max: point,
+            empty: false,
         }
     }
 
@@ -43,8 +84,12 @@ impl BoundingVolume {
     pub fn grow<T: AsBoundingVolume>(&mut self, object: &T) {
         let bounds = object.bounding_volume();
 
-        self.min = self.min.min(bounds.min);
-        self.max = self.max.max(bounds.max);
+        if !self.empty {
+            self.min = self.min.min(bounds.min);
+            self.max = self.max.max(bounds.max);
+        } else {
+            *self = bounds;
+        }
     }
 
     pub fn is_empty(self) -> bool {
@@ -67,7 +112,7 @@ pub struct BvhNode {
 }
 
 impl BvhNode {
-    pub const NODE_COST: f32 = 1.0;
+    pub const NODE_COST: f32 = 0.0;
     pub const OBJECT_COST: f32 = 2.0;
 
     pub fn root<T: AsBoundingVolume>(list: &mut [T]) -> Self {
@@ -98,21 +143,15 @@ impl BvhNode {
         Self::NODE_COST + Self::OBJECT_COST * self.bounds.surface_area() * self.len as f32
     }
 
-    fn evaluate_split_cost<T: AsBoundingVolume>(
-        bounds: BoundingVolume,
-        list: &[T],
-        axis: usize,
-        threshold: f32,
-    ) -> f32 {
-        let mut bounds_a = BoundingVolume::from_point(bounds.min);
-        let mut bounds_b = BoundingVolume::from_point(bounds.max);
+    fn evaluate_split_cost<T: AsBoundingVolume>(list: &[T], axis: usize, threshold: f32) -> f32 {
+        let mut bounds_a = BoundingVolume::EMPTY;
+        let mut bounds_b = BoundingVolume::EMPTY;
 
         let mut a_count = 0;
         let mut b_count = 0;
 
         for obj in list {
-            let obj_bounds = obj.bounding_volume();
-            let obj_center = obj_bounds.center();
+            let obj_center = obj.center();
 
             if obj_center[axis] < threshold {
                 bounds_a.grow(obj);
@@ -123,8 +162,15 @@ impl BvhNode {
             }
         }
 
+        // discourage empty nodes
+        if a_count == 0 || b_count == 0 {
+            //log::info!("Invalid split, axis: {}, threshold: {}")
+            return f32::MAX;
+        }
+
         let a_cost = bounds_a.surface_area() * a_count as f32 * Self::OBJECT_COST;
         let b_cost = bounds_b.surface_area() * b_count as f32 * Self::OBJECT_COST;
+
         Self::NODE_COST + a_cost + b_cost
     }
 
@@ -133,25 +179,42 @@ impl BvhNode {
         bounds: BoundingVolume,
         list: &[T],
     ) -> (f32, usize, f32) {
-        // if there are fewer objects in the volume, we can take fewer cost samples
-        let search_steps = list.len().clamp(2, 20);
-
         // compute the results for all 3 axes in parallel, and then choose the best at the end
-        let mut results_per_axis: Vec<_> = (0..3)
+        let results_per_axis: Vec<_> = (0..3)
             .into_par_iter()
             .map(|axis| {
-                let bounds_start = bounds.min[axis];
-                let bounds_end = bounds.max[axis];
+                // if there are fewer objects in the volume, take a more accurate search
+                let (bounds_min, bounds_max) = if list.len() < 10 {
+                    let mut min = f32::INFINITY;
+                    let mut max = f32::NEG_INFINITY;
+
+                    // find min and max positions of the objects along this axis
+                    for object in list {
+                        let object_bounds = object.bounding_volume();
+
+                        if object_bounds.min[axis] < min {
+                            min = object_bounds.min[axis];
+                        }
+                        if object_bounds.max[axis] > max {
+                            max = object_bounds.max[axis];
+                        }
+                    }
+
+                    (min, max)
+                } else {
+                    (bounds.min[axis], bounds.max[axis])
+                };
+
+                let step_count = list.len().clamp(5, 20);
+                let bounds_step = (bounds_max - bounds_min) / step_count as f32;
 
                 // Vec<(cost, threshold)>
                 // compute all the results in parallel and then choose the best one at the end
-                let results: Vec<(f32, f32)> = (0..search_steps)
+                let results: Vec<(f32, f32)> = (0..step_count)
                     .into_par_iter()
                     .map(|i| {
-                        let threshold =
-                            bounds_start.lerp(bounds_end, (i as f32 + 0.5) / search_steps as f32);
-
-                        let cost = Self::evaluate_split_cost(bounds, list, axis, threshold);
+                        let threshold = bounds_min + bounds_step * (i as f32 + 0.5);
+                        let cost = Self::evaluate_split_cost(list, axis, threshold);
 
                         (cost, threshold)
                     })
@@ -171,9 +234,17 @@ impl BvhNode {
             })
             .collect();
 
-        results_per_axis
-            .sort_unstable_by(|(cost_a, _, _), (cost_b, _, _)| cost_a.total_cmp(cost_b));
-        let (best_cost, best_axis, best_threshold) = results_per_axis[0];
+        let mut best_cost = f32::INFINITY;
+        let mut best_axis = 0;
+        let mut best_threshold = 0.0;
+
+        for (cost, axis, threshold) in results_per_axis {
+            if cost < best_cost {
+                best_cost = cost;
+                best_axis = axis;
+                best_threshold = threshold;
+            }
+        }
 
         (best_cost, best_axis, best_threshold)
     }
@@ -185,13 +256,13 @@ impl BvhNode {
         depth: u32,
         max_depth: u32,
     ) {
-        if depth == max_depth || self.len <= 2 {
+        if depth == max_depth || self.len <= 3 {
             return;
         }
 
         // the child containing objects greater than the split threshold
         let mut child_gt = Self {
-            bounds: BoundingVolume::from_point(self.bounds.center()),
+            bounds: BoundingVolume::EMPTY,
             start_index: self.start_index,
             len: 0,
             child_node: 0,
@@ -199,7 +270,7 @@ impl BvhNode {
 
         // the child containing objects less than the split threshold
         let mut child_lt = Self {
-            bounds: BoundingVolume::from_point(self.bounds.center()),
+            bounds: BoundingVolume::EMPTY,
             start_index: self.start_index,
             len: 0,
             child_node: 0,
@@ -213,15 +284,13 @@ impl BvhNode {
             return;
         }
 
-        let greater = |bounds: BoundingVolume| bounds.center()[split_axis] > split_threshold;
+        let greater = |object: &T| object.center()[split_axis] > split_threshold;
 
         for global_index in self.start_index..(self.start_index + self.len) {
             let global_index = global_index as usize;
             let object = &list[global_index];
 
-            let bounds = object.bounding_volume();
-
-            if greater(bounds) {
+            if greater(object) {
                 child_gt.bounds.grow(object);
                 child_gt.len += 1;
 
@@ -234,16 +303,18 @@ impl BvhNode {
             }
         }
 
-        self.child_node = nodes.len() as u32;
-        nodes.push(child_gt);
-        nodes.push(child_lt);
+        if child_gt.len > 0 && child_lt.len > 0 {
+            self.child_node = nodes.len() as u32;
+            nodes.push(child_gt);
+            nodes.push(child_lt);
 
-        // split the children of this node
-        child_gt.split(list, nodes, depth + 1, max_depth);
-        child_lt.split(list, nodes, depth + 1, max_depth);
+            // split the children of this node
+            child_gt.split(list, nodes, depth + 1, max_depth);
+            child_lt.split(list, nodes, depth + 1, max_depth);
 
-        nodes[self.child_node as usize] = child_gt;
-        nodes[self.child_node as usize + 1] = child_lt;
+            nodes[self.child_node as usize] = child_gt;
+            nodes[self.child_node as usize + 1] = child_lt;
+        }
     }
 }
 
@@ -254,6 +325,13 @@ pub struct BoundingVolumeHierarchy {
 
 impl BoundingVolumeHierarchy {
     pub fn new<T: AsBoundingVolume + Clone + Sync>(list: &mut [T], version: u32) -> Self {
+        if list.is_empty() {
+            return Self {
+                version,
+                nodes: Vec::with_capacity(1),
+            };
+        }
+
         let instant = std::time::Instant::now();
 
         let max_depth = f32::log2(list.len() as f32) as u32 + 2;
@@ -274,6 +352,20 @@ impl BoundingVolumeHierarchy {
 
         let leaf_node_count = nodes.iter().filter(|node| node.child_node == 0).count();
 
+        let min_leaf_object_count = nodes[1..]
+            .iter()
+            .filter(|node| node.child_node == 0)
+            .map(|node| node.len)
+            .min()
+            .unwrap();
+
+        let max_leaf_object_count = nodes[1..]
+            .iter()
+            .filter(|node| node.child_node == 0)
+            .map(|node| node.len)
+            .max()
+            .unwrap();
+
         let average_leaf_object_count = nodes[1..]
             .iter()
             .filter(|node| node.child_node == 0)
@@ -281,36 +373,29 @@ impl BoundingVolumeHierarchy {
             .sum::<u32>() as f32
             / leaf_node_count as f32;
 
-        fn get_max_depth(nodes: &[BvhNode], index: usize) -> u32 {
-            let node = nodes[index];
-
-            if node.child_node == 0 {
-                // no children, stop the count
-                1
-            } else {
-                let child_node_index = node.child_node as usize;
-
-                // get the maximum effective depth of the two children
-                1 + get_max_depth(nodes, child_node_index)
-                    .max(get_max_depth(nodes, child_node_index + 1))
-            }
-        }
-
         log::info!(
             r#"
-            BVH: Object count: {},
-            BVH: Number of nodes: {},
-            BVH: Node max depth: {},
-            BVH: Actual node max depth: {},
-            BVH: Number of leaf nodes: {},
-            BVH: Average leaf object count: {}
-            BVH: Time to construct: {} seconds
+            ---------- Bounding Volume Hierarchy Info ----------
+            - Object count: {},
+            - Number of nodes: {},
+            - Node max depth: {},
+
+            Leaf nodes:
+                - Count: {}
+                - Object count
+                    - Min: {}
+                    - Max: {}
+                    - Average: {}
+
+            Construction time: {} seconds
+            ----------------------------------------------------
             "#,
             list.len(),
             nodes.len(),
             max_depth,
-            get_max_depth(&nodes, 0), // start search with the root node
             leaf_node_count,
+            min_leaf_object_count,
+            max_leaf_object_count,
             average_leaf_object_count,
             construction_time
         );
