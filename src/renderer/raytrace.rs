@@ -227,7 +227,7 @@ impl<'a> RaytraceRenderContext<'a> {
         );
 
         gpu_state.queue.write_texture(
-            wavelength_to_xyz_lut.texture().as_image_copy(),
+            wavelength_to_xyz_lut.as_image_copy(),
             &wavelength_to_xyz_bytes,
             wgpu::ImageDataLayout {
                 offset: 0,
@@ -262,7 +262,7 @@ impl<'a> RaytraceRenderContext<'a> {
         );
 
         gpu_state.queue.write_texture(
-            rgb_to_spectral_intensity_lut.texture().as_image_copy(),
+            rgb_to_spectral_intensity_lut.as_image_copy(),
             &rgb_to_spectral_intensity_bytes,
             wgpu::ImageDataLayout {
                 offset: 0,
@@ -448,17 +448,13 @@ impl<'a> RaytraceRenderContext<'a> {
 
     pub fn draw(&self, encoder: &mut wgpu::CommandEncoder) {
         encoder.copy_texture_to_texture(
-            self.color_texture.texture().as_image_copy(),
-            self.color_texture_copy.texture().as_image_copy(),
-            self.color_texture.texture().size(),
+            self.color_texture.as_image_copy(),
+            self.color_texture_copy.as_image_copy(),
+            self.color_texture.size(),
         );
 
         let workgroup_sizes = UVec3::new(8, 8, 1);
-        let dimensions = UVec3::new(
-            self.color_texture.texture().width(),
-            self.color_texture.texture().height(),
-            1,
-        );
+        let dimensions = UVec3::new(self.color_texture.width(), self.color_texture.height(), 1);
 
         let mut workgroups = dimensions / workgroup_sizes;
 

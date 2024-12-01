@@ -1,4 +1,8 @@
-use std::{fmt::Debug, ops::Range, path::Path};
+use std::{
+    fmt::Debug,
+    ops::{Deref, Range},
+    path::Path,
+};
 
 use crate::{
     engine::render_state::{GpuState, RenderState},
@@ -191,6 +195,14 @@ impl<'a> Texture<'a> {
     }
 }
 
+impl<'a> Deref for Texture<'a> {
+    type Target = wgpu::Texture;
+
+    fn deref(&self) -> &Self::Target {
+        &self.texture
+    }
+}
+
 pub fn create_cubemap_texture<'a, P: AsRef<Path> + Debug>(
     gpu_state: &GpuState,
     name: &'a str,
@@ -210,7 +222,8 @@ pub fn create_cubemap_texture<'a, P: AsRef<Path> + Debug>(
 
     let bytes_per_pixel = format.target_pixel_byte_cost().unwrap();
 
-    let texture = Texture::new(gpu_state,
+    let texture = Texture::new(
+        gpu_state,
         name,
         TextureConfig {
             ty: TextureType::TextureCube,
@@ -228,7 +241,7 @@ pub fn create_cubemap_texture<'a, P: AsRef<Path> + Debug>(
     for (index, image) in images.iter().enumerate() {
         gpu_state.queue.write_texture(
             wgpu::ImageCopyTextureBase {
-                texture: texture.texture(),
+                texture: &texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d {
                     x: 0,

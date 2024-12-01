@@ -76,11 +76,12 @@ impl<'a> DebugRenderContext<'a> {
     }
 
     fn create_texture<'b>(gpu_state: &GpuState, input_texture: &Texture) -> Texture<'b> {
-        Texture::new(gpu_state,
+        Texture::new(
+            gpu_state,
             "Debug Texture",
             TextureConfig {
                 ty: TextureType::Texture2d,
-                format: input_texture.texture().format(),
+                format: input_texture.format(),
                 // 4 pixels per point
                 width: 4 * PROFILER_STEP_COUNT as u32,
                 height: 128,
@@ -140,11 +141,7 @@ impl<'a> DebugRenderContext<'a> {
         if enabled {
             let workgroup_sizes = UVec3::new(8, 8, 1);
 
-            let dimensions = UVec3::new(
-                self.texture.texture().width(),
-                self.texture.texture().height(),
-                1,
-            );
+            let dimensions = UVec3::new(self.texture.width(), self.texture.height(), 1);
 
             let mut workgroups = dimensions / workgroup_sizes;
 
@@ -153,8 +150,8 @@ impl<'a> DebugRenderContext<'a> {
 
             let settings = DebugRenderSettings {
                 enabled: enabled as u32,
-                texture_width: self.texture.texture().width(),
-                texture_height: self.texture.texture().height(),
+                texture_width: self.texture.width(),
+                texture_height: self.texture.height(),
                 step: PROFILER_STEP_SIZE as u32,
             };
 
@@ -170,9 +167,9 @@ impl<'a> DebugRenderContext<'a> {
 
             // Copy the texture to the destination texture
             encoder.copy_texture_to_texture(
-                self.texture.texture().as_image_copy(),
-                destination_texture.texture().as_image_copy(),
-                self.texture.texture().size(),
+                self.texture.as_image_copy(),
+                destination_texture.as_image_copy(),
+                self.texture.size(),
             );
         }
     }

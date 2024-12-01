@@ -63,10 +63,7 @@ impl<'a> BloomRenderContext<'a> {
         input_texture: &Texture,
         screen_buffer: &ScreenBuffer,
     ) -> Self {
-        let mip_levels = Self::calculate_mip_levels(
-            input_texture.texture().width(),
-            input_texture.texture().height(),
-        );
+        let mip_levels = Self::calculate_mip_levels(input_texture.width(), input_texture.height());
 
         let push_constant_config = PushConstantConfig {
             fragment: Some(0..8),

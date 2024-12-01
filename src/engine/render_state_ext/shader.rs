@@ -149,9 +149,3 @@ impl Shader {
         }
     }
 }
-
-pub struct WgpuShaderProgram<'a> {
-    pub vertex: Option<&'a Shader>,
-    pub fragment: Option<&'a Shader>,
-    pub compute: Option<&'a Shader>,
-}
