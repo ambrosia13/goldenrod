@@ -5,7 +5,7 @@ use gpu_bytes::{AsStd140, AsStd430};
 use crate::engine::{
     render_state::GpuState,
     render_state_ext::{
-        buffer::{BufferData, Buffer, BufferConfig, BufferType},
+        buffer::{Buffer, BufferConfig, BufferData, BufferType},
         RenderStateExt,
     },
 };
@@ -45,7 +45,8 @@ where
         Self {
             name: name.to_owned(),
             data,
-            buffer: gpu_state.create_buffer(
+            buffer: Buffer::new(
+                &gpu_state,
                 name,
                 BufferConfig {
                     data: BufferData::Uninit(buffer_size),
@@ -70,7 +71,8 @@ where
         if self.buffer.len() < data_size {
             log::info!("{} dynamic buffer reallocated", &self.name);
 
-            self.buffer = self.gpu_state.create_buffer(
+            self.buffer = Buffer::new(
+                &self.gpu_state,
                 &self.name,
                 BufferConfig {
                     data: BufferData::Init(data.as_slice()),

@@ -5,14 +5,19 @@ use std::{
 
 use crate::{engine::render_state::GpuState, util};
 
+pub enum ShaderBackend {
+    Wgsl,
+    Spirv,
+}
+
 pub enum ShaderSource {
     File {
         name: String,
         source: String,
         path: PathBuf,
+        // backend: ShaderBackend,
     },
     Fallback {
-        name: String,
         path: PathBuf,
     },
 }
@@ -27,6 +32,16 @@ impl ShaderSource {
 
         let name = util::path_name_to_string(&path);
 
+        // match &*path
+        //     .extension()
+        //     .expect("Shader source files should have an extension")
+        //     .to_string_lossy()
+        // {
+        //     "wgsl" => {}
+        //     "spirv" => {}
+        //     _ => todo!(),
+        // };
+
         Ok(Self::File { name, source, path })
     }
 
@@ -39,7 +54,6 @@ impl ShaderSource {
                     relative_path
                 );
                 Self::Fallback {
-                    name: util::path_name_to_string(relative_path.as_ref()),
                     path: PathBuf::from(relative_path.as_ref()),
                 }
             }
@@ -53,7 +67,6 @@ impl ShaderSource {
 
     pub fn fallback<P: AsRef<Path> + std::fmt::Debug>(relative_path: P) -> Self {
         Self::Fallback {
-            name: util::path_name_to_string(relative_path.as_ref()),
             path: PathBuf::from(relative_path.as_ref()),
         }
     }

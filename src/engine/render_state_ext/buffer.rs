@@ -1,8 +1,11 @@
 use std::ops::Deref;
 
 use gpu_bytes::{AsStd140, AsStd430};
+use wgpu::util::DeviceExt;
 
 use crate::engine::render_state::GpuState;
+
+use super::RenderStateExt;
 
 pub enum BufferData<'a> {
     Init(&'a [u8]),
@@ -32,6 +35,53 @@ pub struct Buffer {
 }
 
 impl Buffer {
+    pub fn new<'a>(
+        gpu_state: &impl RenderStateExt,
+        name: &'a str,
+        config: BufferConfig<'a>,
+    ) -> Self {
+        let (buffer, len) = match config.data {
+            BufferData::Init(data) => (
+                gpu_state
+                    .device()
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some(name),
+                        contents: data,
+                        usage: config.usage
+                            | match config.ty {
+                                BufferType::Storage => wgpu::BufferUsages::STORAGE,
+                                BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
+                                BufferType::Vertex => wgpu::BufferUsages::VERTEX,
+                                BufferType::Index => wgpu::BufferUsages::INDEX,
+                            },
+                    }),
+                data.len(),
+            ),
+            BufferData::Uninit(len) => (
+                gpu_state.device().create_buffer(&wgpu::BufferDescriptor {
+                    label: Some(name),
+                    size: len as u64,
+                    usage: config.usage
+                        | match config.ty {
+                            BufferType::Storage => wgpu::BufferUsages::STORAGE,
+                            BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
+                            BufferType::Vertex => wgpu::BufferUsages::VERTEX,
+                            BufferType::Index => wgpu::BufferUsages::INDEX,
+                        },
+                    mapped_at_creation: false,
+                }),
+                len,
+            ),
+        };
+
+        Self {
+            buffer,
+            ty: config.ty,
+            len,
+            gpu_state: gpu_state.as_gpu_state(),
+        }
+    }
+
     pub fn write<T: AsStd140 + AsStd430>(&self, data: &T) {
         match self.ty {
             BufferType::Storage => {

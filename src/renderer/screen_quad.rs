@@ -71,7 +71,8 @@ pub struct ScreenQuad {
 
 impl ScreenQuad {
     pub fn new(render_state: &RenderState) -> Self {
-        let vertex_storage_buffer = render_state.create_buffer(
+        let vertex_storage_buffer = Buffer::new(
+            &render_state,
             "Screen Vertex Storage Buffer",
             BufferConfig {
                 data: BufferData::Init(ScreenVertex::vertices_std430().align().as_slice()),
@@ -80,7 +81,8 @@ impl ScreenQuad {
             },
         );
 
-        let index_storage_buffer = render_state.create_buffer(
+        let index_storage_buffer = Buffer::new(
+            &render_state,
             "Screen Index Storage Buffer",
             BufferConfig {
                 data: BufferData::Init(ScreenVertex::indices_std430().align().as_slice()),

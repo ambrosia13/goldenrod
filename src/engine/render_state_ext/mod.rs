@@ -3,7 +3,7 @@ use std::{fmt::Debug, path::Path};
 use binding::{Binding, BindingEntry};
 use buffer::{Buffer, BufferConfig, BufferData, BufferType};
 use pipeline::{ComputePipelineConfig, PipelineLayoutConfig, RenderPipelineConfig};
-use shader::{ShaderSource, Shader};
+use shader::{Shader, ShaderSource};
 use texture::{Texture, TextureConfig};
 use wgpu::util::DeviceExt;
 
@@ -22,8 +22,6 @@ pub trait RenderStateExt {
     fn device(&self) -> &wgpu::Device;
 
     fn queue(&self) -> &wgpu::Queue;
-
-    fn create_buffer<'a>(&self, name: &'a str, config: BufferConfig<'a>) -> Buffer;
 
     fn create_binding(&self, entries: &[BindingEntry]) -> Binding;
 
@@ -57,48 +55,6 @@ impl RenderStateExt for GpuState {
 
     fn queue(&self) -> &wgpu::Queue {
         &self.queue
-    }
-
-    fn create_buffer<'a>(&self, name: &'a str, config: BufferConfig<'a>) -> Buffer {
-        let (buffer, len) = match config.data {
-            BufferData::Init(data) => (
-                self.device
-                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some(name),
-                        contents: data,
-                        usage: config.usage
-                            | match config.ty {
-                                BufferType::Storage => wgpu::BufferUsages::STORAGE,
-                                BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
-                                BufferType::Vertex => wgpu::BufferUsages::VERTEX,
-                                BufferType::Index => wgpu::BufferUsages::INDEX,
-                            },
-                    }),
-                data.len(),
-            ),
-            BufferData::Uninit(len) => (
-                self.device.create_buffer(&wgpu::BufferDescriptor {
-                    label: Some(name),
-                    size: len as u64,
-                    usage: config.usage
-                        | match config.ty {
-                            BufferType::Storage => wgpu::BufferUsages::STORAGE,
-                            BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
-                            BufferType::Vertex => wgpu::BufferUsages::VERTEX,
-                            BufferType::Index => wgpu::BufferUsages::INDEX,
-                        },
-                    mapped_at_creation: false,
-                }),
-                len,
-            ),
-        };
-
-        Buffer {
-            buffer,
-            ty: config.ty,
-            len,
-            gpu_state: self.clone(),
-        }
     }
 
     fn create_binding(&self, entries: &[BindingEntry]) -> Binding {
@@ -259,10 +215,6 @@ impl RenderStateExt for &RenderState {
 
     fn queue(&self) -> &wgpu::Queue {
         &self.queue
-    }
-
-    fn create_buffer<'a>(&self, name: &'a str, config: BufferConfig<'a>) -> Buffer {
-        self.get_gpu_state().create_buffer(name, config)
     }
 
     fn create_binding(&self, entries: &[BindingEntry]) -> Binding {

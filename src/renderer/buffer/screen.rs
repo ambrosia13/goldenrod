@@ -6,7 +6,7 @@ use crate::{
     engine::{
         render_state::RenderState,
         render_state_ext::{
-            buffer::{BufferData, Buffer, BufferConfig, BufferType},
+            buffer::{Buffer, BufferConfig, BufferData, BufferType},
             RenderStateExt,
         },
     },
@@ -103,7 +103,8 @@ impl ScreenBuffer {
 
         Self {
             data,
-            buffer: render_state.create_buffer(
+            buffer: Buffer::new(
+                &render_state,
                 "Screen Uniforms Buffer",
                 BufferConfig {
                     data: BufferData::Uninit(buffer_size),

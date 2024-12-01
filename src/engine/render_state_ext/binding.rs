@@ -2,7 +2,7 @@ use std::num::NonZero;
 
 use crate::engine::render_state;
 
-use super::{buffer::Buffer, texture::Texture};
+use super::{buffer::Buffer, texture::Texture, RenderStateExt};
 
 pub enum BindingData<'resource, 'r>
 where
@@ -104,6 +104,51 @@ pub struct Binding {
 }
 
 impl Binding {
+    pub fn new(gpu_state: &impl RenderStateExt, entries: &[BindingEntry]) -> Self {
+        let entries: Vec<_> = entries
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| {
+                (
+                    wgpu::BindGroupEntry {
+                        binding: index as u32,
+                        resource: entry.binding_data.binding_resource(),
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: index as u32,
+                        visibility: entry.visibility,
+                        ty: entry.binding_data.binding_type(),
+                        count: entry.count,
+                    },
+                )
+            })
+            .collect();
+
+        let bind_group_entries: Vec<_> = entries.iter().map(|(bge, _)| bge.clone()).collect();
+        let bind_group_layout_entries: Vec<_> = entries.iter().map(|&(_, bgle)| bgle).collect();
+
+        let bind_group_layout =
+            gpu_state
+                .device()
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &bind_group_layout_entries,
+                });
+
+        let bind_group = gpu_state
+            .device()
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &bind_group_layout,
+                entries: &bind_group_entries,
+            });
+
+        Binding {
+            bind_group,
+            bind_group_layout,
+        }
+    }
+
     pub fn bind_group(&self) -> &wgpu::BindGroup {
         &self.bind_group
     }

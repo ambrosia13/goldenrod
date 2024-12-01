@@ -53,7 +53,8 @@ impl BvhBuffer {
 
         Self {
             data,
-            buffer: gpu_state.create_buffer(
+            buffer: Buffer::new(
+                &gpu_state,
                 "Bounding Volume Hierarchy Buffer",
                 BufferConfig {
                     data: BufferData::Uninit(buffer_size),
@@ -76,7 +77,8 @@ impl BvhBuffer {
         if self.buffer.len() < data_size {
             log::info!("BVH Buffer reallocated");
 
-            self.buffer = self.gpu_state.create_buffer(
+            self.buffer = Buffer::new(
+                &self.gpu_state,
                 "Bounding Volume Hierarchy Buffer",
                 BufferConfig {
                     data: BufferData::Init(data.as_slice()),
