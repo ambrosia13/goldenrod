@@ -2,38 +2,38 @@ use std::num::NonZero;
 
 use crate::engine::render_state;
 
-use super::{buffer::WgpuBuffer, texture::WgpuTexture};
+use super::{buffer::Buffer, texture::Texture};
 
-pub enum WgpuBindingData<'resource, 'r>
+pub enum BindingData<'resource, 'r>
 where
     'resource: 'r,
 {
     TextureView {
-        texture: &'r WgpuTexture<'resource>,
+        texture: &'r Texture<'resource>,
         texture_view: &'r wgpu::TextureView,
     },
     TextureSampler {
         sampler_type: wgpu::SamplerBindingType,
-        texture: &'r WgpuTexture<'resource>,
+        texture: &'r Texture<'resource>,
     },
     TextureStorage {
         access: wgpu::StorageTextureAccess,
         texture_view: &'r wgpu::TextureView,
-        texture: &'r WgpuTexture<'resource>,
+        texture: &'r Texture<'resource>,
     },
     Buffer {
         buffer_type: wgpu::BufferBindingType,
-        buffer: &'r WgpuBuffer,
+        buffer: &'r Buffer,
     },
 }
 
-impl<'resource, 'r> WgpuBindingData<'resource, 'r>
+impl<'resource, 'r> BindingData<'resource, 'r>
 where
     'resource: 'r,
 {
     pub fn binding_type(&self) -> wgpu::BindingType {
         match *self {
-            WgpuBindingData::TextureView {
+            BindingData::TextureView {
                 texture,
                 texture_view: _,
             } => wgpu::BindingType::Texture {
@@ -45,11 +45,11 @@ where
                 view_dimension: texture.view_dimension(),
                 multisampled: false,
             },
-            WgpuBindingData::TextureSampler {
+            BindingData::TextureSampler {
                 sampler_type,
                 texture: _,
             } => wgpu::BindingType::Sampler(sampler_type),
-            WgpuBindingData::TextureStorage {
+            BindingData::TextureStorage {
                 access,
                 texture_view: _,
                 texture,
@@ -58,7 +58,7 @@ where
                 format: texture.texture_descriptor.format,
                 view_dimension: texture.view_dimension(),
             },
-            WgpuBindingData::Buffer {
+            BindingData::Buffer {
                 buffer_type,
                 buffer: _,
             } => wgpu::BindingType::Buffer {
@@ -71,20 +71,20 @@ where
 
     pub fn binding_resource(&self) -> wgpu::BindingResource<'r> {
         match self {
-            WgpuBindingData::TextureView {
+            BindingData::TextureView {
                 texture: _,
                 texture_view,
             } => wgpu::BindingResource::TextureView(texture_view),
-            WgpuBindingData::TextureSampler {
+            BindingData::TextureSampler {
                 sampler_type: _,
                 texture,
             } => wgpu::BindingResource::Sampler(&texture.sampler),
-            WgpuBindingData::TextureStorage {
+            BindingData::TextureStorage {
                 access: _,
                 texture_view,
                 texture: _,
             } => wgpu::BindingResource::TextureView(texture_view),
-            WgpuBindingData::Buffer {
+            BindingData::Buffer {
                 buffer_type: _,
                 buffer,
             } => buffer.as_entire_binding(),
@@ -92,18 +92,18 @@ where
     }
 }
 
-pub struct WgpuBindingEntry<'resource, 'r> {
+pub struct BindingEntry<'resource, 'r> {
     pub visibility: wgpu::ShaderStages,
-    pub binding_data: WgpuBindingData<'resource, 'r>,
+    pub binding_data: BindingData<'resource, 'r>,
     pub count: Option<NonZero<u32>>,
 }
 
-pub struct WgpuBinding {
+pub struct Binding {
     pub(in crate::engine) bind_group: wgpu::BindGroup,
     pub(in crate::engine) bind_group_layout: wgpu::BindGroupLayout,
 }
 
-impl WgpuBinding {
+impl Binding {
     pub fn bind_group(&self) -> &wgpu::BindGroup {
         &self.bind_group
     }

@@ -4,11 +4,11 @@ use winit::dpi::PhysicalSize;
 use crate::engine::{
     render_state::{GpuState, RenderState},
     render_state_ext::{
-        binding::{WgpuBinding, WgpuBindingData, WgpuBindingEntry},
-        pass::WgpuComputePass,
-        pipeline::{WgpuComputePipelineConfig, WgpuPipelineLayoutConfig, WgpuPushConstantConfig},
-        shader::WgpuShader,
-        texture::{self, WgpuTexture, WgpuTextureConfig, WgpuTextureType},
+        binding::{Binding, BindingData, BindingEntry},
+        pass::ComputePass,
+        pipeline::{ComputePipelineConfig, PipelineLayoutConfig, PushConstantConfig},
+        shader::Shader,
+        texture::{self, Texture, TextureConfig, TextureType},
         RenderStateExt,
     },
 };
@@ -20,17 +20,17 @@ use super::buffer::{
 };
 
 pub struct RaytraceRenderContext<'a> {
-    pub color_texture: WgpuTexture<'a>,
-    pub color_texture_copy: WgpuTexture<'a>,
+    pub color_texture: Texture<'a>,
+    pub color_texture_copy: Texture<'a>,
 
-    pub shader: WgpuShader,
+    pub shader: Shader,
     pub pipeline_layout: wgpu::PipelineLayout,
     pub pipeline: wgpu::ComputePipeline,
 
-    pub screen_binding: WgpuBinding,
-    pub object_binding: WgpuBinding,
-    pub lut_binding: WgpuBinding,
-    pub texture_binding: WgpuBinding,
+    pub screen_binding: Binding,
+    pub object_binding: Binding,
+    pub lut_binding: Binding,
+    pub texture_binding: Binding,
 
     gpu_state: GpuState,
 }
@@ -49,8 +49,8 @@ impl<'a> RaytraceRenderContext<'a> {
     ) -> Self {
         let gpu_state = render_state.get_gpu_state();
 
-        let color_texture_config = WgpuTextureConfig {
-            ty: WgpuTextureType::Texture2d,
+        let color_texture_config = TextureConfig {
+            ty: TextureType::Texture2d,
             format: Self::TEXTURE_FORMAT,
             width: render_state.size.width,
             height: render_state.size.height,
@@ -63,7 +63,7 @@ impl<'a> RaytraceRenderContext<'a> {
 
         let color_texture = gpu_state.create_texture(
             "Raytrace Color Texture",
-            WgpuTextureConfig {
+            TextureConfig {
                 usage: wgpu::TextureUsages::STORAGE_BINDING
                     | wgpu::TextureUsages::TEXTURE_BINDING
                     | wgpu::TextureUsages::COPY_SRC,
@@ -73,7 +73,7 @@ impl<'a> RaytraceRenderContext<'a> {
 
         let color_texture_copy = gpu_state.create_texture(
             "Raytrace Color Texture Copy",
-            WgpuTextureConfig {
+            TextureConfig {
                 usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
                 ..color_texture_config
             },
@@ -82,9 +82,9 @@ impl<'a> RaytraceRenderContext<'a> {
         let (wavelength_to_xyz_lut, rgb_to_spectral_intensity_lut, cubemap) =
             Self::load_luts(&gpu_state);
 
-        let screen_binding = gpu_state.create_binding(&[WgpuBindingEntry {
+        let screen_binding = gpu_state.create_binding(&[BindingEntry {
             visibility: wgpu::ShaderStages::COMPUTE,
-            binding_data: WgpuBindingData::Buffer {
+            binding_data: BindingData::Buffer {
                 buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                 buffer: &screen_buffer.buffer,
             },
@@ -101,35 +101,35 @@ impl<'a> RaytraceRenderContext<'a> {
         );
 
         let lut_binding = gpu_state.create_binding(&[
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::TextureStorage {
+                binding_data: BindingData::TextureStorage {
                     access: wgpu::StorageTextureAccess::ReadOnly,
                     texture_view: &wavelength_to_xyz_lut.view(0..1, 0..1),
                     texture: &wavelength_to_xyz_lut,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::TextureStorage {
+                binding_data: BindingData::TextureStorage {
                     access: wgpu::StorageTextureAccess::ReadOnly,
                     texture_view: &rgb_to_spectral_intensity_lut.view(0..1, 0..1),
                     texture: &rgb_to_spectral_intensity_lut,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::TextureView {
+                binding_data: BindingData::TextureView {
                     texture: &cubemap,
                     texture_view: &cubemap.view(0..1, 0..6),
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::TextureSampler {
+                binding_data: BindingData::TextureSampler {
                     sampler_type: wgpu::SamplerBindingType::Filtering,
                     texture: &cubemap,
                 },
@@ -142,19 +142,19 @@ impl<'a> RaytraceRenderContext<'a> {
 
         let shader = render_state.create_shader("assets/shaders/raytrace.wgsl");
 
-        let pipeline_layout = render_state.create_pipeline_layout(WgpuPipelineLayoutConfig {
+        let pipeline_layout = render_state.create_pipeline_layout(PipelineLayoutConfig {
             bind_group_layouts: &[
                 screen_binding.bind_group_layout(),
                 object_binding.bind_group_layout(),
                 lut_binding.bind_group_layout(),
                 texture_binding.bind_group_layout(),
             ],
-            push_constant_config: WgpuPushConstantConfig::default(),
+            push_constant_config: PushConstantConfig::default(),
         });
 
         let pipeline = render_state.create_compute_pipeline(
             "Raytrace Compute Pipeline",
-            WgpuComputePipelineConfig {
+            ComputePipelineConfig {
                 layout: &pipeline_layout,
                 shader: &shader,
             },
@@ -174,7 +174,7 @@ impl<'a> RaytraceRenderContext<'a> {
         }
     }
 
-    pub fn load_luts(gpu_state: &GpuState) -> (WgpuTexture, WgpuTexture, WgpuTexture) {
+    pub fn load_luts(gpu_state: &GpuState) -> (Texture, Texture, Texture) {
         let wavelength_to_xyz_path = std::env::current_dir()
             .unwrap()
             .join("assets/textures/lut/wavelength_to_xyz");
@@ -204,8 +204,8 @@ impl<'a> RaytraceRenderContext<'a> {
 
         let wavelength_to_xyz_lut = gpu_state.create_texture(
             "Wavelength to XYZ LUT",
-            WgpuTextureConfig {
-                ty: WgpuTextureType::Texture1d,
+            TextureConfig {
+                ty: TextureType::Texture1d,
                 format: wgpu::TextureFormat::Rgba32Float,
                 width: lut_size,
                 height: 1,
@@ -238,8 +238,8 @@ impl<'a> RaytraceRenderContext<'a> {
 
         let rgb_to_spectral_intensity_lut = gpu_state.create_texture(
             "RGB to Spectral Intensity",
-            WgpuTextureConfig {
-                ty: WgpuTextureType::Texture1d,
+            TextureConfig {
+                ty: TextureType::Texture1d,
                 format: wgpu::TextureFormat::Rgba32Float,
                 width: lut_size,
                 height: 1,
@@ -285,22 +285,22 @@ impl<'a> RaytraceRenderContext<'a> {
 
     fn create_texture_binding(
         gpu_state: &GpuState,
-        texture: &WgpuTexture,
-        texture_copy: &WgpuTexture,
-    ) -> WgpuBinding {
+        texture: &Texture,
+        texture_copy: &Texture,
+    ) -> Binding {
         gpu_state.create_binding(&[
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::TextureStorage {
+                binding_data: BindingData::TextureStorage {
                     access: wgpu::StorageTextureAccess::WriteOnly,
                     texture_view: &texture.view(0..1, 0..1),
                     texture,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::TextureStorage {
+                binding_data: BindingData::TextureStorage {
                     access: wgpu::StorageTextureAccess::ReadOnly,
                     texture_view: &texture_copy.view(0..1, 0..1),
                     texture: texture_copy,
@@ -317,43 +317,43 @@ impl<'a> RaytraceRenderContext<'a> {
         aabb_list_buffer: &AabbListBuffer,
         triangle_list_buffer: &TriangleListBuffer,
         bvh_buffer: &BvhBuffer,
-    ) -> WgpuBinding {
+    ) -> Binding {
         gpu_state.create_binding(&[
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::Buffer {
+                binding_data: BindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &sphere_list_buffer.buffer,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::Buffer {
+                binding_data: BindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &plane_list_buffer.buffer,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::Buffer {
+                binding_data: BindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &aabb_list_buffer.buffer,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::Buffer {
+                binding_data: BindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &triangle_list_buffer.buffer,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::Buffer {
+                binding_data: BindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &bvh_buffer.buffer,
                 },
@@ -365,7 +365,7 @@ impl<'a> RaytraceRenderContext<'a> {
     fn recreate_pipeline(&mut self) {
         self.pipeline = self.gpu_state.create_compute_pipeline(
             "Raytrace Compute Pipeline",
-            WgpuComputePipelineConfig {
+            ComputePipelineConfig {
                 layout: &self.pipeline_layout,
                 shader: &self.shader,
             },
@@ -449,7 +449,7 @@ impl<'a> RaytraceRenderContext<'a> {
         // Add an extra workgroup in each dimension if the number we calculated doesn't cover the whole dimensions
         workgroups += (dimensions % workgroups).clamp(UVec3::ZERO, UVec3::ONE);
 
-        let compute_pass = WgpuComputePass {
+        let compute_pass = ComputePass {
             name: "Raytrace Pass",
             workgroups,
             pipeline: &self.pipeline,

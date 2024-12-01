@@ -10,31 +10,31 @@ pub enum BufferData<'a> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WgpuBufferType {
+pub enum BufferType {
     Storage,
     Uniform,
     Vertex,
     Index,
 }
 
-pub struct WgpuBufferConfig<'a> {
+pub struct BufferConfig<'a> {
     pub data: BufferData<'a>,
-    pub ty: WgpuBufferType,
+    pub ty: BufferType,
     pub usage: wgpu::BufferUsages,
 }
 
-pub struct WgpuBuffer {
+pub struct Buffer {
     pub(in crate::engine::render_state_ext) buffer: wgpu::Buffer,
-    pub(in crate::engine::render_state_ext) ty: WgpuBufferType,
+    pub(in crate::engine::render_state_ext) ty: BufferType,
     pub(in crate::engine::render_state_ext) len: usize,
 
     pub(in crate::engine::render_state_ext) gpu_state: GpuState,
 }
 
-impl WgpuBuffer {
+impl Buffer {
     pub fn write<T: AsStd140 + AsStd430>(&self, data: &T) {
         match self.ty {
-            WgpuBufferType::Storage => {
+            BufferType::Storage => {
                 let mut std430 = data.as_std430();
                 std430.align();
 
@@ -42,7 +42,7 @@ impl WgpuBuffer {
                     .queue
                     .write_buffer(self, 0, std430.as_slice());
             }
-            WgpuBufferType::Uniform | WgpuBufferType::Vertex | WgpuBufferType::Index => {
+            BufferType::Uniform | BufferType::Vertex | BufferType::Index => {
                 let mut std140 = data.as_std140();
                 std140.align();
 
@@ -53,7 +53,7 @@ impl WgpuBuffer {
         }
     }
 
-    pub fn buffer_type(&self) -> WgpuBufferType {
+    pub fn buffer_type(&self) -> BufferType {
         self.ty
     }
 
@@ -62,7 +62,7 @@ impl WgpuBuffer {
     }
 }
 
-impl Deref for WgpuBuffer {
+impl Deref for Buffer {
     type Target = wgpu::Buffer;
 
     fn deref(&self) -> &Self::Target {

@@ -7,10 +7,10 @@ use gpu_bytes_derive::{AsStd140, AsStd430};
 use crate::engine::{
     render_state::{GpuState, RenderState},
     render_state_ext::{
-        binding::{WgpuBinding, WgpuBindingData, WgpuBindingEntry},
-        pass::WgpuComputePass,
-        pipeline::{WgpuComputePipelineConfig, WgpuPipelineLayoutConfig, WgpuPushConstantConfig},
-        texture::{WgpuTexture, WgpuTextureConfig, WgpuTextureType},
+        binding::{Binding, BindingData, BindingEntry},
+        pass::ComputePass,
+        pipeline::{ComputePipelineConfig, PipelineLayoutConfig, PushConstantConfig},
+        texture::{Texture, TextureConfig, TextureType},
         RenderStateExt,
     },
 };
@@ -26,8 +26,8 @@ pub struct DebugRenderSettings {
 }
 
 pub struct DebugRenderContext<'a> {
-    pub texture: WgpuTexture<'a>,
-    pub binding: WgpuBinding,
+    pub texture: Texture<'a>,
+    pub binding: Binding,
     pub pipeline: wgpu::ComputePipeline,
     gpu_state: GpuState,
 }
@@ -35,7 +35,7 @@ pub struct DebugRenderContext<'a> {
 impl<'a> DebugRenderContext<'a> {
     pub fn new(
         render_state: &RenderState,
-        input_texture: &WgpuTexture,
+        input_texture: &Texture,
         profiler_buffer: &ProfilerBuffer,
     ) -> Self {
         let gpu_state = render_state.get_gpu_state();
@@ -51,9 +51,9 @@ impl<'a> DebugRenderContext<'a> {
 
         let shader = gpu_state.create_shader("assets/shaders/debug.wgsl");
 
-        let pipeline_layout = gpu_state.create_pipeline_layout(WgpuPipelineLayoutConfig {
+        let pipeline_layout = gpu_state.create_pipeline_layout(PipelineLayoutConfig {
             bind_group_layouts: &[binding.bind_group_layout()],
-            push_constant_config: WgpuPushConstantConfig {
+            push_constant_config: PushConstantConfig {
                 compute: Some(0..(push_constant_size as u32)),
                 ..Default::default()
             },
@@ -61,7 +61,7 @@ impl<'a> DebugRenderContext<'a> {
 
         let pipeline = gpu_state.create_compute_pipeline(
             "Debug Compute Pipeline",
-            WgpuComputePipelineConfig {
+            ComputePipelineConfig {
                 layout: &pipeline_layout,
                 shader: &shader,
             },
@@ -75,11 +75,11 @@ impl<'a> DebugRenderContext<'a> {
         }
     }
 
-    fn create_texture<'b>(gpu_state: &GpuState, input_texture: &WgpuTexture) -> WgpuTexture<'b> {
+    fn create_texture<'b>(gpu_state: &GpuState, input_texture: &Texture) -> Texture<'b> {
         gpu_state.create_texture(
             "Debug Texture",
-            WgpuTextureConfig {
-                ty: WgpuTextureType::Texture2d,
+            TextureConfig {
+                ty: TextureType::Texture2d,
                 format: input_texture.texture().format(),
                 // 4 pixels per point
                 width: 4 * PROFILER_STEP_COUNT as u32,
@@ -95,22 +95,22 @@ impl<'a> DebugRenderContext<'a> {
 
     fn create_binding(
         gpu_state: &GpuState,
-        texture: &WgpuTexture,
+        texture: &Texture,
         profiler_buffer: &ProfilerBuffer,
-    ) -> WgpuBinding {
+    ) -> Binding {
         gpu_state.create_binding(&[
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::TextureStorage {
+                binding_data: BindingData::TextureStorage {
                     access: wgpu::StorageTextureAccess::WriteOnly,
                     texture_view: &texture.view(0..1, 0..1),
                     texture,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::COMPUTE,
-                binding_data: WgpuBindingData::Buffer {
+                binding_data: BindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &profiler_buffer.buffer,
                 },
@@ -121,7 +121,7 @@ impl<'a> DebugRenderContext<'a> {
 
     pub fn on_profiler_update(
         &mut self,
-        input_texture: &WgpuTexture,
+        input_texture: &Texture,
         profiler_buffer: &ProfilerBuffer,
     ) {
         self.texture = Self::create_texture(&self.gpu_state, input_texture);
@@ -131,7 +131,7 @@ impl<'a> DebugRenderContext<'a> {
     pub fn draw(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        destination_texture: &WgpuTexture,
+        destination_texture: &Texture,
         enabled: bool,
     ) {
         if enabled {
@@ -155,7 +155,7 @@ impl<'a> DebugRenderContext<'a> {
                 step: PROFILER_STEP_SIZE as u32,
             };
 
-            let compute_pass = WgpuComputePass {
+            let compute_pass = ComputePass {
                 name: "Debug Render Pass",
                 workgroups,
                 pipeline: &self.pipeline,

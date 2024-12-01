@@ -9,7 +9,7 @@ use glam::{Quat, Vec2, Vec3};
 use gltf::{mesh::Mode, Gltf};
 
 use crate::{
-    engine::{render_state::GpuState, render_state_ext::texture::WgpuTexture},
+    engine::{render_state::GpuState, render_state_ext::texture::Texture},
     state::{material::Material, object::Triangle},
 };
 

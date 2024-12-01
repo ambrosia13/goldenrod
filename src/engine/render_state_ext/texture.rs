@@ -8,7 +8,7 @@ use crate::{
 use super::RenderStateExt;
 
 #[derive(Debug, Clone, Copy)]
-pub enum WgpuTextureType {
+pub enum TextureType {
     Texture1d,
 
     Texture2d,
@@ -19,33 +19,33 @@ pub enum WgpuTextureType {
     Texture3d,
 }
 
-impl WgpuTextureType {
+impl TextureType {
     pub fn dimension(self) -> wgpu::TextureDimension {
         match self {
-            WgpuTextureType::Texture1d => wgpu::TextureDimension::D1,
-            WgpuTextureType::Texture2d => wgpu::TextureDimension::D2,
-            WgpuTextureType::Texture2dArray => wgpu::TextureDimension::D2,
-            WgpuTextureType::TextureCube => wgpu::TextureDimension::D2,
-            WgpuTextureType::TextureCubeArray => wgpu::TextureDimension::D2,
-            WgpuTextureType::Texture3d => wgpu::TextureDimension::D3,
+            TextureType::Texture1d => wgpu::TextureDimension::D1,
+            TextureType::Texture2d => wgpu::TextureDimension::D2,
+            TextureType::Texture2dArray => wgpu::TextureDimension::D2,
+            TextureType::TextureCube => wgpu::TextureDimension::D2,
+            TextureType::TextureCubeArray => wgpu::TextureDimension::D2,
+            TextureType::Texture3d => wgpu::TextureDimension::D3,
         }
     }
 
     pub fn view_dimension(self) -> wgpu::TextureViewDimension {
         match self {
-            WgpuTextureType::Texture1d => wgpu::TextureViewDimension::D1,
-            WgpuTextureType::Texture2d => wgpu::TextureViewDimension::D2,
-            WgpuTextureType::Texture2dArray => wgpu::TextureViewDimension::D2Array,
-            WgpuTextureType::TextureCube => wgpu::TextureViewDimension::Cube,
-            WgpuTextureType::TextureCubeArray => wgpu::TextureViewDimension::CubeArray,
-            WgpuTextureType::Texture3d => wgpu::TextureViewDimension::D3,
+            TextureType::Texture1d => wgpu::TextureViewDimension::D1,
+            TextureType::Texture2d => wgpu::TextureViewDimension::D2,
+            TextureType::Texture2dArray => wgpu::TextureViewDimension::D2Array,
+            TextureType::TextureCube => wgpu::TextureViewDimension::Cube,
+            TextureType::TextureCubeArray => wgpu::TextureViewDimension::CubeArray,
+            TextureType::Texture3d => wgpu::TextureViewDimension::D3,
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct WgpuTextureConfig {
-    pub ty: WgpuTextureType,
+pub struct TextureConfig {
+    pub ty: TextureType,
     pub format: wgpu::TextureFormat,
 
     pub width: u32,
@@ -60,7 +60,7 @@ pub struct WgpuTextureConfig {
     pub usage: wgpu::TextureUsages,
 }
 
-impl WgpuTextureConfig {
+impl TextureConfig {
     pub fn texture_descriptor<'a>(&self, name: &'a str) -> wgpu::TextureDescriptor<'a> {
         wgpu::TextureDescriptor {
             label: Some(name),
@@ -92,10 +92,10 @@ impl WgpuTextureConfig {
     }
 }
 
-pub struct WgpuTexture<'a> {
+pub struct Texture<'a> {
     pub(in crate::engine::render_state_ext) name: &'a str,
 
-    pub(in crate::engine::render_state_ext) ty: WgpuTextureType,
+    pub(in crate::engine::render_state_ext) ty: TextureType,
 
     pub texture_descriptor: wgpu::TextureDescriptor<'a>,
     pub sampler_descriptor: wgpu::SamplerDescriptor<'a>,
@@ -106,7 +106,7 @@ pub struct WgpuTexture<'a> {
     pub(in crate::engine::render_state_ext) gpu_state: GpuState,
 }
 
-impl<'a> WgpuTexture<'a> {
+impl<'a> Texture<'a> {
     pub fn resize(&mut self, new_width: u32, new_height: u32) {
         self.texture_descriptor.size.width = new_width;
         self.texture_descriptor.size.height = new_height;
@@ -180,7 +180,7 @@ pub fn create_cubemap_texture<'a, P: AsRef<Path> + Debug>(
     size: u32,
     format: wgpu::TextureFormat,
     usage: wgpu::TextureUsages,
-) -> Result<WgpuTexture<'a>, std::io::Error> {
+) -> Result<Texture<'a>, std::io::Error> {
     let parent_path = std::env::current_dir().unwrap();
     let path = parent_path.join(&path);
 
@@ -194,8 +194,8 @@ pub fn create_cubemap_texture<'a, P: AsRef<Path> + Debug>(
 
     let texture = gpu_state.create_texture(
         name,
-        WgpuTextureConfig {
-            ty: WgpuTextureType::TextureCube,
+        TextureConfig {
+            ty: TextureType::TextureCube,
             format,
             width: size,
             height: size,

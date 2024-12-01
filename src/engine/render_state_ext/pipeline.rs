@@ -1,15 +1,15 @@
 use std::ops::Range;
 
-use super::shader::WgpuShader;
+use super::shader::Shader;
 
 #[derive(Debug, Default, Clone)]
-pub struct WgpuPushConstantConfig {
+pub struct PushConstantConfig {
     pub vertex: Option<Range<u32>>,
     pub fragment: Option<Range<u32>>,
     pub compute: Option<Range<u32>>,
 }
 
-impl WgpuPushConstantConfig {
+impl PushConstantConfig {
     pub fn as_ranges(&self) -> Vec<wgpu::PushConstantRange> {
         let mut ranges = Vec::new();
 
@@ -38,20 +38,20 @@ impl WgpuPushConstantConfig {
     }
 }
 
-pub struct WgpuPipelineLayoutConfig<'a> {
+pub struct PipelineLayoutConfig<'a> {
     pub bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
-    pub push_constant_config: WgpuPushConstantConfig,
+    pub push_constant_config: PushConstantConfig,
 }
 
-pub struct WgpuComputePipelineConfig<'a> {
+pub struct ComputePipelineConfig<'a> {
     pub layout: &'a wgpu::PipelineLayout,
-    pub shader: &'a WgpuShader,
+    pub shader: &'a Shader,
 }
 
-pub struct WgpuRenderPipelineConfig<'a> {
+pub struct RenderPipelineConfig<'a> {
     pub layout: &'a wgpu::PipelineLayout,
     pub vertex_buffer_layouts: &'a [wgpu::VertexBufferLayout<'a>],
-    pub vertex: &'a WgpuShader,
-    pub fragment: &'a WgpuShader,
+    pub vertex: &'a Shader,
+    pub fragment: &'a Shader,
     pub targets: &'a [Option<wgpu::ColorTargetState>],
 }

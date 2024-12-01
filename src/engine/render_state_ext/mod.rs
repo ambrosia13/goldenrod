@@ -1,10 +1,10 @@
 use std::{fmt::Debug, path::Path};
 
-use binding::{WgpuBinding, WgpuBindingEntry};
-use buffer::{BufferData, WgpuBuffer, WgpuBufferConfig, WgpuBufferType};
-use pipeline::{WgpuComputePipelineConfig, WgpuPipelineLayoutConfig, WgpuRenderPipelineConfig};
-use shader::{WgpuShader, WgslShaderSource};
-use texture::{WgpuTexture, WgpuTextureConfig};
+use binding::{Binding, BindingEntry};
+use buffer::{Buffer, BufferConfig, BufferData, BufferType};
+use pipeline::{ComputePipelineConfig, PipelineLayoutConfig, RenderPipelineConfig};
+use shader::{ShaderSource, Shader};
+use texture::{Texture, TextureConfig};
 use wgpu::util::DeviceExt;
 
 use super::render_state::{GpuState, RenderState};
@@ -23,26 +23,26 @@ pub trait RenderStateExt {
 
     fn queue(&self) -> &wgpu::Queue;
 
-    fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer;
+    fn create_buffer<'a>(&self, name: &'a str, config: BufferConfig<'a>) -> Buffer;
 
-    fn create_binding(&self, entries: &[WgpuBindingEntry]) -> WgpuBinding;
+    fn create_binding(&self, entries: &[BindingEntry]) -> Binding;
 
-    fn create_texture<'a>(&self, name: &'a str, config: WgpuTextureConfig) -> WgpuTexture<'a>;
+    fn create_texture<'a>(&self, name: &'a str, config: TextureConfig) -> Texture<'a>;
 
-    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> WgpuShader;
+    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader;
 
-    fn create_pipeline_layout(&self, config: WgpuPipelineLayoutConfig) -> wgpu::PipelineLayout;
+    fn create_pipeline_layout(&self, config: PipelineLayoutConfig) -> wgpu::PipelineLayout;
 
     fn create_compute_pipeline(
         &self,
         name: &str,
-        config: WgpuComputePipelineConfig,
+        config: ComputePipelineConfig,
     ) -> wgpu::ComputePipeline;
 
     fn create_render_pipeline(
         &self,
         name: &str,
-        config: WgpuRenderPipelineConfig,
+        config: RenderPipelineConfig,
     ) -> wgpu::RenderPipeline;
 }
 
@@ -59,7 +59,7 @@ impl RenderStateExt for GpuState {
         &self.queue
     }
 
-    fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer {
+    fn create_buffer<'a>(&self, name: &'a str, config: BufferConfig<'a>) -> Buffer {
         let (buffer, len) = match config.data {
             BufferData::Init(data) => (
                 self.device
@@ -68,10 +68,10 @@ impl RenderStateExt for GpuState {
                         contents: data,
                         usage: config.usage
                             | match config.ty {
-                                WgpuBufferType::Storage => wgpu::BufferUsages::STORAGE,
-                                WgpuBufferType::Uniform => wgpu::BufferUsages::UNIFORM,
-                                WgpuBufferType::Vertex => wgpu::BufferUsages::VERTEX,
-                                WgpuBufferType::Index => wgpu::BufferUsages::INDEX,
+                                BufferType::Storage => wgpu::BufferUsages::STORAGE,
+                                BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
+                                BufferType::Vertex => wgpu::BufferUsages::VERTEX,
+                                BufferType::Index => wgpu::BufferUsages::INDEX,
                             },
                     }),
                 data.len(),
@@ -82,10 +82,10 @@ impl RenderStateExt for GpuState {
                     size: len as u64,
                     usage: config.usage
                         | match config.ty {
-                            WgpuBufferType::Storage => wgpu::BufferUsages::STORAGE,
-                            WgpuBufferType::Uniform => wgpu::BufferUsages::UNIFORM,
-                            WgpuBufferType::Vertex => wgpu::BufferUsages::VERTEX,
-                            WgpuBufferType::Index => wgpu::BufferUsages::INDEX,
+                            BufferType::Storage => wgpu::BufferUsages::STORAGE,
+                            BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
+                            BufferType::Vertex => wgpu::BufferUsages::VERTEX,
+                            BufferType::Index => wgpu::BufferUsages::INDEX,
                         },
                     mapped_at_creation: false,
                 }),
@@ -93,7 +93,7 @@ impl RenderStateExt for GpuState {
             ),
         };
 
-        WgpuBuffer {
+        Buffer {
             buffer,
             ty: config.ty,
             len,
@@ -101,7 +101,7 @@ impl RenderStateExt for GpuState {
         }
     }
 
-    fn create_binding(&self, entries: &[WgpuBindingEntry]) -> WgpuBinding {
+    fn create_binding(&self, entries: &[BindingEntry]) -> Binding {
         let entries: Vec<_> = entries
             .iter()
             .enumerate()
@@ -137,20 +137,20 @@ impl RenderStateExt for GpuState {
             entries: &bind_group_entries,
         });
 
-        WgpuBinding {
+        Binding {
             bind_group,
             bind_group_layout,
         }
     }
 
-    fn create_texture<'a>(&self, name: &'a str, config: WgpuTextureConfig) -> WgpuTexture<'a> {
+    fn create_texture<'a>(&self, name: &'a str, config: TextureConfig) -> Texture<'a> {
         let texture_descriptor = config.texture_descriptor(name);
         let sampler_descriptor = config.sampler_descriptor(name);
 
         let texture = self.device.create_texture(&texture_descriptor);
         let sampler = self.device.create_sampler(&sampler_descriptor);
 
-        WgpuTexture {
+        Texture {
             name,
             ty: config.ty,
             texture_descriptor,
@@ -161,8 +161,8 @@ impl RenderStateExt for GpuState {
         }
     }
 
-    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> WgpuShader {
-        let mut source = WgslShaderSource::load(&relative_path);
+    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader {
+        let mut source = ShaderSource::load(&relative_path);
 
         // so we can catch shader compilation errors instead of panicking
         self.device.push_error_scope(wgpu::ErrorFilter::Validation);
@@ -170,18 +170,18 @@ impl RenderStateExt for GpuState {
         let err = pollster::block_on(self.device.pop_error_scope());
 
         if err.is_some() {
-            source = WgslShaderSource::fallback(&relative_path);
+            source = ShaderSource::fallback(&relative_path);
             module = self.device.create_shader_module(source.desc());
         }
 
-        WgpuShader {
+        Shader {
             source,
             module,
             gpu_state: self.clone(),
         }
     }
 
-    fn create_pipeline_layout(&self, config: WgpuPipelineLayoutConfig) -> wgpu::PipelineLayout {
+    fn create_pipeline_layout(&self, config: PipelineLayoutConfig) -> wgpu::PipelineLayout {
         self.device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
@@ -193,7 +193,7 @@ impl RenderStateExt for GpuState {
     fn create_compute_pipeline(
         &self,
         name: &str,
-        config: WgpuComputePipelineConfig,
+        config: ComputePipelineConfig,
     ) -> wgpu::ComputePipeline {
         self.device
             .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
@@ -209,7 +209,7 @@ impl RenderStateExt for GpuState {
     fn create_render_pipeline(
         &self,
         name: &str,
-        config: WgpuRenderPipelineConfig,
+        config: RenderPipelineConfig,
     ) -> wgpu::RenderPipeline {
         self.device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -261,30 +261,30 @@ impl RenderStateExt for &RenderState {
         &self.queue
     }
 
-    fn create_buffer<'a>(&self, name: &'a str, config: WgpuBufferConfig<'a>) -> WgpuBuffer {
+    fn create_buffer<'a>(&self, name: &'a str, config: BufferConfig<'a>) -> Buffer {
         self.get_gpu_state().create_buffer(name, config)
     }
 
-    fn create_binding(&self, entries: &[WgpuBindingEntry]) -> WgpuBinding {
+    fn create_binding(&self, entries: &[BindingEntry]) -> Binding {
         self.get_gpu_state().create_binding(entries)
     }
 
-    fn create_texture<'a>(&self, name: &'a str, config: WgpuTextureConfig) -> WgpuTexture<'a> {
+    fn create_texture<'a>(&self, name: &'a str, config: TextureConfig) -> Texture<'a> {
         self.get_gpu_state().create_texture(name, config)
     }
 
-    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> WgpuShader {
+    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader {
         self.get_gpu_state().create_shader(relative_path)
     }
 
-    fn create_pipeline_layout(&self, config: WgpuPipelineLayoutConfig) -> wgpu::PipelineLayout {
+    fn create_pipeline_layout(&self, config: PipelineLayoutConfig) -> wgpu::PipelineLayout {
         self.get_gpu_state().create_pipeline_layout(config)
     }
 
     fn create_compute_pipeline(
         &self,
         name: &str,
-        config: WgpuComputePipelineConfig,
+        config: ComputePipelineConfig,
     ) -> wgpu::ComputePipeline {
         self.get_gpu_state().create_compute_pipeline(name, config)
     }
@@ -292,7 +292,7 @@ impl RenderStateExt for &RenderState {
     fn create_render_pipeline(
         &self,
         name: &str,
-        config: WgpuRenderPipelineConfig,
+        config: RenderPipelineConfig,
     ) -> wgpu::RenderPipeline {
         self.get_gpu_state().create_render_pipeline(name, config)
     }

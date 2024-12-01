@@ -5,7 +5,7 @@ use std::{
 
 use crate::{engine::render_state::GpuState, util};
 
-pub enum WgslShaderSource {
+pub enum ShaderSource {
     File {
         name: String,
         source: String,
@@ -17,7 +17,7 @@ pub enum WgslShaderSource {
     },
 }
 
-impl WgslShaderSource {
+impl ShaderSource {
     fn read_source<P: AsRef<Path>>(relative_path: P) -> Result<Self, std::io::Error> {
         let parent_path = std::env::current_dir()?;
         let path = parent_path.join(relative_path);
@@ -60,21 +60,21 @@ impl WgslShaderSource {
 
     pub fn name(&self) -> &str {
         match self {
-            WgslShaderSource::File { name, .. } => name,
-            WgslShaderSource::Fallback { .. } => "fallback.wgsl",
+            ShaderSource::File { name, .. } => name,
+            ShaderSource::Fallback { .. } => "fallback.wgsl",
         }
     }
 
     pub fn path(&self) -> &Path {
         match self {
-            WgslShaderSource::File { path, .. } => path,
-            WgslShaderSource::Fallback { path, .. } => path,
+            ShaderSource::File { path, .. } => path,
+            ShaderSource::Fallback { path, .. } => path,
         }
     }
 
     pub fn desc(&self) -> wgpu::ShaderModuleDescriptor {
         match self {
-            WgslShaderSource::File {
+            ShaderSource::File {
                 name,
                 source,
                 path: _,
@@ -82,7 +82,7 @@ impl WgslShaderSource {
                 label: Some(name),
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(source)),
             },
-            WgslShaderSource::Fallback { .. } => wgpu::ShaderModuleDescriptor {
+            ShaderSource::Fallback { .. } => wgpu::ShaderModuleDescriptor {
                 label: Some("Fallback Shader"),
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!(
                     "assets/fallback.wgsl"
@@ -92,19 +92,19 @@ impl WgslShaderSource {
     }
 
     pub fn is_fallback(&self) -> bool {
-        matches!(self, WgslShaderSource::Fallback { .. })
+        matches!(self, ShaderSource::Fallback { .. })
     }
 }
 
-pub struct WgpuShader {
-    pub(in crate::engine::render_state_ext) source: WgslShaderSource,
+pub struct Shader {
+    pub(in crate::engine::render_state_ext) source: ShaderSource,
     pub(in crate::engine::render_state_ext) module: wgpu::ShaderModule,
 
     pub(in crate::engine::render_state_ext) gpu_state: GpuState,
 }
 
-impl WgpuShader {
-    pub fn source(&self) -> &WgslShaderSource {
+impl Shader {
+    pub fn source(&self) -> &ShaderSource {
         &self.source
     }
 
@@ -128,7 +128,7 @@ impl WgpuShader {
         let err = pollster::block_on(self.gpu_state.device.pop_error_scope());
 
         if err.is_some() {
-            self.source = WgslShaderSource::fallback(self.source.path());
+            self.source = ShaderSource::fallback(self.source.path());
             self.module = self
                 .gpu_state
                 .device
@@ -138,7 +138,7 @@ impl WgpuShader {
 }
 
 pub struct WgpuShaderProgram<'a> {
-    pub vertex: Option<&'a WgpuShader>,
-    pub fragment: Option<&'a WgpuShader>,
-    pub compute: Option<&'a WgpuShader>,
+    pub vertex: Option<&'a Shader>,
+    pub fragment: Option<&'a Shader>,
+    pub compute: Option<&'a Shader>,
 }

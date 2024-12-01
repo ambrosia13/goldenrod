@@ -5,7 +5,7 @@ use crate::{
     engine::{
         render_state::{GpuState, RenderState},
         render_state_ext::{
-            buffer::{BufferData, WgpuBuffer, WgpuBufferConfig, WgpuBufferType},
+            buffer::{Buffer, BufferConfig, BufferData, BufferType},
             RenderStateExt,
         },
     },
@@ -40,7 +40,7 @@ impl Default for BvhUniform {
 
 pub struct BvhBuffer {
     pub data: BvhUniform,
-    pub buffer: WgpuBuffer,
+    pub buffer: Buffer,
     gpu_state: GpuState,
 }
 
@@ -55,9 +55,9 @@ impl BvhBuffer {
             data,
             buffer: gpu_state.create_buffer(
                 "Bounding Volume Hierarchy Buffer",
-                WgpuBufferConfig {
+                BufferConfig {
                     data: BufferData::Uninit(buffer_size),
-                    ty: WgpuBufferType::Storage,
+                    ty: BufferType::Storage,
                     usage: wgpu::BufferUsages::COPY_DST,
                 },
             ),
@@ -78,9 +78,9 @@ impl BvhBuffer {
 
             self.buffer = self.gpu_state.create_buffer(
                 "Bounding Volume Hierarchy Buffer",
-                WgpuBufferConfig {
+                BufferConfig {
                     data: BufferData::Init(data.as_slice()),
-                    ty: WgpuBufferType::Storage,
+                    ty: BufferType::Storage,
                     usage: wgpu::BufferUsages::COPY_DST,
                 },
             );

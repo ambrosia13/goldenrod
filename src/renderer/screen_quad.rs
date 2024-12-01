@@ -7,9 +7,9 @@ use gpu_bytes_derive::{AsStd140, AsStd430};
 use crate::engine::{
     render_state::RenderState,
     render_state_ext::{
-        binding::{WgpuBinding, WgpuBindingData, WgpuBindingEntry},
-        buffer::{BufferData, WgpuBuffer, WgpuBufferConfig, WgpuBufferType},
-        shader::WgpuShader,
+        binding::{Binding, BindingData, BindingEntry},
+        buffer::{Buffer, BufferConfig, BufferData, BufferType},
+        shader::Shader,
         RenderStateExt,
     },
 };
@@ -62,45 +62,45 @@ impl ScreenVertex {
 
 #[derive(Clone)]
 pub struct ScreenQuad {
-    pub vertex_storage_buffer: Arc<WgpuBuffer>,
-    pub index_storage_buffer: Arc<WgpuBuffer>,
+    pub vertex_storage_buffer: Arc<Buffer>,
+    pub index_storage_buffer: Arc<Buffer>,
 
-    pub vertex_index_binding: Arc<WgpuBinding>,
-    pub vertex_shader: Arc<WgpuShader>,
+    pub vertex_index_binding: Arc<Binding>,
+    pub vertex_shader: Arc<Shader>,
 }
 
 impl ScreenQuad {
     pub fn new(render_state: &RenderState) -> Self {
         let vertex_storage_buffer = render_state.create_buffer(
             "Screen Vertex Storage Buffer",
-            WgpuBufferConfig {
+            BufferConfig {
                 data: BufferData::Init(ScreenVertex::vertices_std430().align().as_slice()),
-                ty: WgpuBufferType::Storage,
+                ty: BufferType::Storage,
                 usage: wgpu::BufferUsages::empty(),
             },
         );
 
         let index_storage_buffer = render_state.create_buffer(
             "Screen Index Storage Buffer",
-            WgpuBufferConfig {
+            BufferConfig {
                 data: BufferData::Init(ScreenVertex::indices_std430().align().as_slice()),
-                ty: WgpuBufferType::Storage,
+                ty: BufferType::Storage,
                 usage: wgpu::BufferUsages::empty(),
             },
         );
 
         let vertex_index_binding = render_state.create_binding(&[
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::VERTEX,
-                binding_data: WgpuBindingData::Buffer {
+                binding_data: BindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &vertex_storage_buffer,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::VERTEX,
-                binding_data: WgpuBindingData::Buffer {
+                binding_data: BindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &index_storage_buffer,
                 },

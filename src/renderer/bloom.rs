@@ -5,11 +5,11 @@ use winit::dpi::PhysicalSize;
 use crate::engine::{
     render_state::{GpuState, RenderState},
     render_state_ext::{
-        binding::{WgpuBinding, WgpuBindingData, WgpuBindingEntry},
-        pass::WgpuRenderPass,
-        pipeline::{WgpuPipelineLayoutConfig, WgpuPushConstantConfig, WgpuRenderPipelineConfig},
-        shader::WgpuShader,
-        texture::{WgpuTexture, WgpuTextureConfig, WgpuTextureType},
+        binding::{Binding, BindingData, BindingEntry},
+        pass::RenderPass,
+        pipeline::{PipelineLayoutConfig, PushConstantConfig, RenderPipelineConfig},
+        shader::Shader,
+        texture::{Texture, TextureConfig, TextureType},
         RenderStateExt,
     },
 };
@@ -25,27 +25,27 @@ struct LodInfo {
 pub struct BloomRenderContext<'a> {
     pub downsample_pipeline: wgpu::RenderPipeline,
     pub downsample_pipeline_layout: wgpu::PipelineLayout,
-    pub downsample_shader: WgpuShader,
-    pub downsample_bindings: Vec<WgpuBinding>,
-    pub downsample_texture: WgpuTexture<'a>,
+    pub downsample_shader: Shader,
+    pub downsample_bindings: Vec<Binding>,
+    pub downsample_texture: Texture<'a>,
 
     pub first_upsample_pipeline: wgpu::RenderPipeline,
     pub first_upsample_pipeline_layout: wgpu::PipelineLayout,
-    pub first_upsample_shader: WgpuShader,
-    pub first_upsample_binding: WgpuBinding,
+    pub first_upsample_shader: Shader,
+    pub first_upsample_binding: Binding,
     pub upsample_pipeline: wgpu::RenderPipeline,
     pub upsample_pipeline_layout: wgpu::PipelineLayout,
-    pub upsample_shader: WgpuShader,
-    pub upsample_bindings: Vec<WgpuBinding>,
-    pub upsample_texture: WgpuTexture<'a>,
+    pub upsample_shader: Shader,
+    pub upsample_bindings: Vec<Binding>,
+    pub upsample_texture: Texture<'a>,
 
-    pub bloom_texture: WgpuTexture<'a>,
+    pub bloom_texture: Texture<'a>,
     pub merge_pipeline: wgpu::RenderPipeline,
     pub merge_pipeline_layout: wgpu::PipelineLayout,
-    pub merge_shader: WgpuShader,
-    pub merge_binding: WgpuBinding,
+    pub merge_shader: Shader,
+    pub merge_binding: Binding,
 
-    pub push_constant_config: WgpuPushConstantConfig,
+    pub push_constant_config: PushConstantConfig,
 
     pub mip_levels: u32,
 
@@ -60,7 +60,7 @@ impl<'a> BloomRenderContext<'a> {
     pub fn new(
         render_state: &RenderState,
         screen_quad: &ScreenQuad,
-        input_texture: &WgpuTexture,
+        input_texture: &Texture,
         screen_buffer: &ScreenBuffer,
     ) -> Self {
         let mip_levels = Self::calculate_mip_levels(
@@ -68,7 +68,7 @@ impl<'a> BloomRenderContext<'a> {
             input_texture.texture().height(),
         );
 
-        let push_constant_config = WgpuPushConstantConfig {
+        let push_constant_config = PushConstantConfig {
             fragment: Some(0..8),
             ..Default::default()
         };
@@ -167,9 +167,9 @@ impl<'a> BloomRenderContext<'a> {
         gpu_state: &GpuState,
         size: PhysicalSize<u32>,
         mip_levels: u32,
-    ) -> (WgpuTexture<'b>, WgpuTexture<'b>, WgpuTexture<'b>) {
-        let config = WgpuTextureConfig {
-            ty: WgpuTextureType::Texture2d,
+    ) -> (Texture<'b>, Texture<'b>, Texture<'b>) {
+        let config = TextureConfig {
+            ty: TextureType::Texture2d,
             format: BloomRenderContext::TEXTURE_FORMAT,
             width: size.width,
             height: size.height,
@@ -185,41 +185,41 @@ impl<'a> BloomRenderContext<'a> {
         (
             gpu_state.create_texture("Bloom Downsample Texture", config.clone()),
             gpu_state.create_texture("Bloom Upsample Texture", config.clone()),
-            gpu_state.create_texture("Bloom Texture", WgpuTextureConfig { mips: 1, ..config }),
+            gpu_state.create_texture("Bloom Texture", TextureConfig { mips: 1, ..config }),
         )
     }
 
     fn create_bindings(
         gpu_state: &GpuState,
-        downsample_texture: &WgpuTexture,
-        upsample_texture: &WgpuTexture,
-        input_texture: &WgpuTexture,
+        downsample_texture: &Texture,
+        upsample_texture: &Texture,
+        input_texture: &Texture,
         screen_buffer: &ScreenBuffer,
         mip_levels: u32,
-    ) -> (Vec<WgpuBinding>, WgpuBinding, Vec<WgpuBinding>, WgpuBinding) {
+    ) -> (Vec<Binding>, Binding, Vec<Binding>, Binding) {
         let mut downsample_bindings = Vec::with_capacity(mip_levels as usize);
         let mut upsample_bindings = Vec::with_capacity(mip_levels as usize);
 
         downsample_bindings.push(gpu_state.create_binding(&[
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureView {
+                binding_data: BindingData::TextureView {
                     texture: input_texture,
                     texture_view: &input_texture.view(0..1, 0..1),
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureSampler {
+                binding_data: BindingData::TextureSampler {
                     sampler_type: wgpu::SamplerBindingType::Filtering,
                     texture: input_texture,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::Buffer {
+                binding_data: BindingData::Buffer {
                     buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                     buffer: &screen_buffer.buffer,
                 },
@@ -229,25 +229,25 @@ impl<'a> BloomRenderContext<'a> {
 
         for target_mip in 1..mip_levels {
             downsample_bindings.push(gpu_state.create_binding(&[
-                WgpuBindingEntry {
+                BindingEntry {
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: WgpuBindingData::TextureView {
+                    binding_data: BindingData::TextureView {
                         texture: downsample_texture,
                         texture_view: &downsample_texture.view((target_mip - 1)..target_mip, 0..1),
                     },
                     count: None,
                 },
-                WgpuBindingEntry {
+                BindingEntry {
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: WgpuBindingData::TextureSampler {
+                    binding_data: BindingData::TextureSampler {
                         sampler_type: wgpu::SamplerBindingType::Filtering,
                         texture: downsample_texture,
                     },
                     count: None,
                 },
-                WgpuBindingEntry {
+                BindingEntry {
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: WgpuBindingData::Buffer {
+                    binding_data: BindingData::Buffer {
                         buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                         buffer: &screen_buffer.buffer,
                     },
@@ -257,17 +257,17 @@ impl<'a> BloomRenderContext<'a> {
         }
 
         let first_upsample_binding = gpu_state.create_binding(&[
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureView {
+                binding_data: BindingData::TextureView {
                     texture: downsample_texture,
                     texture_view: &downsample_texture.view((mip_levels - 1)..mip_levels, 0..1),
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureSampler {
+                binding_data: BindingData::TextureSampler {
                     sampler_type: wgpu::SamplerBindingType::Filtering,
                     texture: downsample_texture,
                 },
@@ -277,42 +277,42 @@ impl<'a> BloomRenderContext<'a> {
 
         for target_mip in 0..(mip_levels - 1) {
             upsample_bindings.push(gpu_state.create_binding(&[
-                WgpuBindingEntry {
+                BindingEntry {
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: WgpuBindingData::TextureView {
+                    binding_data: BindingData::TextureView {
                         texture: upsample_texture,
                         texture_view:
                             &upsample_texture.view((target_mip + 1)..(target_mip + 2), 0..1),
                     },
                     count: None,
                 },
-                WgpuBindingEntry {
+                BindingEntry {
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: WgpuBindingData::TextureSampler {
+                    binding_data: BindingData::TextureSampler {
                         sampler_type: wgpu::SamplerBindingType::Filtering,
                         texture: upsample_texture,
                     },
                     count: None,
                 },
-                WgpuBindingEntry {
+                BindingEntry {
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: WgpuBindingData::TextureView {
+                    binding_data: BindingData::TextureView {
                         texture: downsample_texture,
                         texture_view: &downsample_texture.view(target_mip..(target_mip + 1), 0..1),
                     },
                     count: None,
                 },
-                WgpuBindingEntry {
+                BindingEntry {
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: WgpuBindingData::TextureSampler {
+                    binding_data: BindingData::TextureSampler {
                         sampler_type: wgpu::SamplerBindingType::Filtering,
                         texture: downsample_texture,
                     },
                     count: None,
                 },
-                WgpuBindingEntry {
+                BindingEntry {
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    binding_data: WgpuBindingData::Buffer {
+                    binding_data: BindingData::Buffer {
                         buffer_type: wgpu::BufferBindingType::Storage { read_only: true },
                         buffer: &screen_buffer.buffer,
                     },
@@ -322,33 +322,33 @@ impl<'a> BloomRenderContext<'a> {
         }
 
         let merge_binding = gpu_state.create_binding(&[
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureView {
+                binding_data: BindingData::TextureView {
                     texture: input_texture,
                     texture_view: &input_texture.view(0..1, 0..1),
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureSampler {
+                binding_data: BindingData::TextureSampler {
                     sampler_type: wgpu::SamplerBindingType::Filtering,
                     texture: input_texture,
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureView {
+                binding_data: BindingData::TextureView {
                     texture: upsample_texture,
                     texture_view: &upsample_texture.view(0..1, 0..1),
                 },
                 count: None,
             },
-            WgpuBindingEntry {
+            BindingEntry {
                 visibility: wgpu::ShaderStages::FRAGMENT,
-                binding_data: WgpuBindingData::TextureSampler {
+                binding_data: BindingData::TextureSampler {
                     sampler_type: wgpu::SamplerBindingType::Filtering,
                     texture: upsample_texture,
                 },
@@ -367,12 +367,12 @@ impl<'a> BloomRenderContext<'a> {
     fn create_pipelines(
         gpu_state: &GpuState,
         name: &str,
-        binding: &WgpuBinding,
-        push_constant_config: &WgpuPushConstantConfig,
+        binding: &Binding,
+        push_constant_config: &PushConstantConfig,
         screen_quad: &ScreenQuad,
-        shader: &WgpuShader,
+        shader: &Shader,
     ) -> (wgpu::PipelineLayout, wgpu::RenderPipeline) {
-        let layout = gpu_state.create_pipeline_layout(WgpuPipelineLayoutConfig {
+        let layout = gpu_state.create_pipeline_layout(PipelineLayoutConfig {
             bind_group_layouts: &[
                 screen_quad.vertex_index_binding.bind_group_layout(),
                 binding.bind_group_layout(),
@@ -382,7 +382,7 @@ impl<'a> BloomRenderContext<'a> {
 
         let pipeline = gpu_state.create_render_pipeline(
             name,
-            WgpuRenderPipelineConfig {
+            RenderPipelineConfig {
                 layout: &layout,
                 vertex_buffer_layouts: &[],
                 vertex: &screen_quad.vertex_shader,
@@ -414,7 +414,7 @@ impl<'a> BloomRenderContext<'a> {
         self.upsample_texture.recreate();
     }
 
-    fn recreate_bindings(&mut self, input_texture: &WgpuTexture, screen_buffer: &ScreenBuffer) {
+    fn recreate_bindings(&mut self, input_texture: &Texture, screen_buffer: &ScreenBuffer) {
         (
             self.downsample_bindings,
             self.first_upsample_binding,
@@ -483,7 +483,7 @@ impl<'a> BloomRenderContext<'a> {
     pub fn resize(
         &mut self,
         new_size: PhysicalSize<u32>,
-        input_texture: &WgpuTexture,
+        input_texture: &Texture,
         screen_buffer: &ScreenBuffer,
     ) {
         self.recreate_textures(new_size);
@@ -496,7 +496,7 @@ impl<'a> BloomRenderContext<'a> {
                 .downsample_texture
                 .view(target_mip..(target_mip + 1), 0..1);
 
-            let render_pass = WgpuRenderPass {
+            let render_pass = RenderPass {
                 name: &format!("Bloom Downsample Pass (lod = {})", target_mip),
                 color_attachments: &[Some(&view)],
                 pipeline: &self.downsample_pipeline,
@@ -523,7 +523,7 @@ impl<'a> BloomRenderContext<'a> {
             .upsample_texture
             .view((self.mip_levels - 1)..self.mip_levels, 0..1);
 
-        let first_render_pass = WgpuRenderPass {
+        let first_render_pass = RenderPass {
             name: "First Bloom Upsample Render Pass",
             color_attachments: &[Some(&first_view)],
             pipeline: &self.first_upsample_pipeline,
@@ -548,7 +548,7 @@ impl<'a> BloomRenderContext<'a> {
                 .upsample_texture
                 .view(target_mip..(target_mip + 1), 0..1);
 
-            let render_pass = WgpuRenderPass {
+            let render_pass = RenderPass {
                 name: &format!("Bloom Upsample Render Pass (lod = {})", target_mip),
                 color_attachments: &[Some(&view)],
                 pipeline: &self.upsample_pipeline,
@@ -573,7 +573,7 @@ impl<'a> BloomRenderContext<'a> {
     fn draw_merge(&self, encoder: &mut wgpu::CommandEncoder) {
         let view = self.bloom_texture.view(0..1, 0..1);
 
-        let render_pass = WgpuRenderPass {
+        let render_pass = RenderPass {
             name: "Bloom Merge Render Pass",
             color_attachments: &[Some(&view)],
             pipeline: &self.merge_pipeline,

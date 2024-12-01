@@ -6,7 +6,7 @@ use crate::{
     engine::{
         render_state::RenderState,
         render_state_ext::{
-            buffer::{BufferData, WgpuBuffer, WgpuBufferConfig, WgpuBufferType},
+            buffer::{BufferData, Buffer, BufferConfig, BufferType},
             RenderStateExt,
         },
     },
@@ -92,7 +92,7 @@ impl ScreenUniform {
 
 pub struct ScreenBuffer {
     pub data: ScreenUniform,
-    pub buffer: WgpuBuffer,
+    pub buffer: Buffer,
 }
 
 impl ScreenBuffer {
@@ -105,9 +105,9 @@ impl ScreenBuffer {
             data,
             buffer: render_state.create_buffer(
                 "Screen Uniforms Buffer",
-                WgpuBufferConfig {
+                BufferConfig {
                     data: BufferData::Uninit(buffer_size),
-                    ty: WgpuBufferType::Storage,
+                    ty: BufferType::Storage,
                     usage: wgpu::BufferUsages::COPY_DST,
                 },
             ),

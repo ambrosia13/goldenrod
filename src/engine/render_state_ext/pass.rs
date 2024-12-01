@@ -1,17 +1,17 @@
 use glam::UVec3;
 use gpu_bytes::Std430Bytes;
 
-use super::binding::WgpuBinding;
+use super::binding::Binding;
 
-pub struct WgpuComputePass<'a> {
+pub struct ComputePass<'a> {
     pub name: &'a str,
     pub workgroups: UVec3,
     pub pipeline: &'a wgpu::ComputePipeline,
-    pub bindings: &'a [&'a WgpuBinding],
+    pub bindings: &'a [&'a Binding],
     pub push_constants: Option<Std430Bytes>,
 }
 
-impl<'a> WgpuComputePass<'a> {
+impl<'a> ComputePass<'a> {
     pub fn draw(self, encoder: &mut wgpu::CommandEncoder) {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(self.name),
@@ -32,15 +32,15 @@ impl<'a> WgpuComputePass<'a> {
     }
 }
 
-pub struct WgpuRenderPass<'a> {
+pub struct RenderPass<'a> {
     pub name: &'a str,
     pub color_attachments: &'a [Option<&'a wgpu::TextureView>],
     pub pipeline: &'a wgpu::RenderPipeline,
-    pub bindings: &'a [&'a WgpuBinding],
+    pub bindings: &'a [&'a Binding],
     pub push_constants: Option<Vec<(wgpu::ShaderStages, Std430Bytes)>>,
 }
 
-impl<'a> WgpuRenderPass<'a> {
+impl<'a> RenderPass<'a> {
     pub fn draw(self, encoder: &mut wgpu::CommandEncoder) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some(self.name),

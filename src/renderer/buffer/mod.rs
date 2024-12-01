@@ -5,7 +5,7 @@ use gpu_bytes::{AsStd140, AsStd430};
 use crate::engine::{
     render_state::GpuState,
     render_state_ext::{
-        buffer::{BufferData, WgpuBuffer, WgpuBufferConfig, WgpuBufferType},
+        buffer::{BufferData, Buffer, BufferConfig, BufferType},
         RenderStateExt,
     },
 };
@@ -29,7 +29,7 @@ where
 {
     pub name: String,
     pub data: T,
-    pub buffer: WgpuBuffer,
+    pub buffer: Buffer,
     gpu_state: GpuState,
     _marker: PhantomData<S>,
 }
@@ -47,9 +47,9 @@ where
             data,
             buffer: gpu_state.create_buffer(
                 name,
-                WgpuBufferConfig {
+                BufferConfig {
                     data: BufferData::Uninit(buffer_size),
-                    ty: WgpuBufferType::Storage,
+                    ty: BufferType::Storage,
                     usage: wgpu::BufferUsages::COPY_DST,
                 },
             ),
@@ -72,9 +72,9 @@ where
 
             self.buffer = self.gpu_state.create_buffer(
                 &self.name,
-                WgpuBufferConfig {
+                BufferConfig {
                     data: BufferData::Init(data.as_slice()),
-                    ty: WgpuBufferType::Storage,
+                    ty: BufferType::Storage,
                     usage: wgpu::BufferUsages::COPY_DST,
                 },
             );
