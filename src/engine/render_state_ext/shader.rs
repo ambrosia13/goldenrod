@@ -5,9 +5,74 @@ use std::{
 
 use crate::{engine::render_state::GpuState, util};
 
+#[derive(Clone, Copy)]
 pub enum ShaderBackend {
     Wgsl,
     Spirv,
+}
+
+pub struct ShaderFile {
+    name: String,
+    path: PathBuf,
+    backend: ShaderBackend,
+}
+
+pub struct ShaderSourceNew {
+    file: ShaderFile,
+    source: Option<Vec<u8>>,
+}
+
+impl ShaderSourceNew {
+    pub fn load_wgsl() -> Self {
+        todo!()
+    }
+
+    pub fn load_slang() -> Self {
+        todo!()
+    }
+
+    pub fn load_spirv() -> Self {
+        todo!()
+    }
+
+    pub fn reload(&mut self) {
+        todo!()
+    }
+
+    pub fn is_fallback(&self) -> bool {
+        self.source.is_none()
+    }
+
+    pub fn backend(&self) -> ShaderBackend {
+        self.file.backend
+    }
+
+    pub fn source_str(&self) -> &str {
+        todo!()
+    }
+
+    pub fn source_bytes(&self) -> &[u8] {
+        todo!()
+    }
+
+    pub fn descriptor(&self) -> wgpu::ShaderModuleDescriptor<'_> {
+        wgpu::ShaderModuleDescriptor {
+            label: None,
+            source: match self.backend() {
+                ShaderBackend::Wgsl => wgpu::ShaderSource::Wgsl(Cow::Borrowed(self.source_str())),
+                ShaderBackend::Spirv => {
+                    wgpu::ShaderSource::SpirV(wgpu::util::make_spirv_raw(self.source_bytes()))
+                }
+            },
+        }
+    }
+}
+
+pub struct ShaderNew {
+    source: ShaderSourceNew,
+    module: wgpu::ShaderModule,
+
+    gpu_state: GpuState,
 }
 
 pub enum ShaderSource {
@@ -15,15 +80,19 @@ pub enum ShaderSource {
         name: String,
         source: String,
         path: PathBuf,
-        // backend: ShaderBackend,
+        backend: ShaderBackend,
     },
     Fallback {
         path: PathBuf,
+        backend: ShaderBackend,
     },
 }
 
 impl ShaderSource {
-    fn read_source<P: AsRef<Path>>(relative_path: P) -> Result<Self, std::io::Error> {
+    fn read_source<P: AsRef<Path>>(
+        relative_path: P,
+        backend: ShaderBackend,
+    ) -> Result<Self, std::io::Error> {
         let parent_path = std::env::current_dir()?;
         let path = parent_path.join(relative_path);
 
@@ -42,11 +111,19 @@ impl ShaderSource {
         //     _ => todo!(),
         // };
 
-        Ok(Self::File { name, source, path })
+        Ok(Self::File {
+            name,
+            source,
+            path,
+            backend,
+        })
     }
 
-    pub fn load<P: AsRef<Path> + std::fmt::Debug>(relative_path: P) -> Self {
-        match Self::read_source(&relative_path) {
+    pub fn load<P: AsRef<Path> + std::fmt::Debug>(
+        relative_path: P,
+        backend: ShaderBackend,
+    ) -> Self {
+        match Self::read_source(&relative_path, backend) {
             Ok(s) => s,
             Err(_) => {
                 log::error!(
@@ -55,6 +132,7 @@ impl ShaderSource {
                 );
                 Self::Fallback {
                     path: PathBuf::from(relative_path.as_ref()),
+                    backend,
                 }
             }
         }
@@ -62,12 +140,13 @@ impl ShaderSource {
 
     pub fn reload(&mut self) {
         let path = self.path();
-        *self = Self::load(path);
+        *self = Self::load(path, self.backend());
     }
 
     pub fn fallback<P: AsRef<Path> + std::fmt::Debug>(relative_path: P) -> Self {
         Self::Fallback {
             path: PathBuf::from(relative_path.as_ref()),
+            backend: ShaderBackend::Wgsl,
         }
     }
 
@@ -85,13 +164,28 @@ impl ShaderSource {
         }
     }
 
-    pub fn desc(&self) -> wgpu::ShaderModuleDescriptor {
+    pub fn source(&self) -> &str {
         match self {
-            ShaderSource::File {
-                name,
-                source,
-                path: _,
-            } => wgpu::ShaderModuleDescriptor {
+            ShaderSource::File { source, .. } => source,
+            ShaderSource::Fallback { .. } => include_str!("assets/fallback.wgsl"),
+        }
+    }
+
+    pub fn backend(&self) -> ShaderBackend {
+        match self {
+            ShaderSource::File { backend, .. } => *backend,
+            ShaderSource::Fallback { backend, .. } => *backend,
+        }
+    }
+
+    pub fn desc(&self) -> wgpu::ShaderModuleDescriptor {
+        // let source = match self.backend() {
+        //     ShaderBackend::Wgsl => wgpu::ShaderSource::Wgsl(Cow::Borrowed(source)),
+        //     ShaderBackend::Spirv => todo!(),
+        // };
+
+        match self {
+            ShaderSource::File { name, source, .. } => wgpu::ShaderModuleDescriptor {
                 label: Some(name),
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(source)),
             },

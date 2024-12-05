@@ -3,7 +3,7 @@ use std::{fmt::Debug, path::Path};
 use binding::{Binding, BindingEntry};
 use buffer::{Buffer, BufferConfig, BufferData, BufferType};
 use pipeline::{ComputePipelineConfig, PipelineLayoutConfig, RenderPipelineConfig};
-use shader::{Shader, ShaderSource};
+use shader::{Shader, ShaderBackend, ShaderSource};
 use texture::{Texture, TextureConfig};
 use wgpu::util::DeviceExt;
 
@@ -54,7 +54,7 @@ impl RenderStateExt for GpuState {
     }
 
     fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader {
-        let mut source = ShaderSource::load(&relative_path);
+        let mut source = ShaderSource::load(&relative_path, ShaderBackend::Wgsl);
 
         // so we can catch shader compilation errors instead of panicking
         self.device.push_error_scope(wgpu::ErrorFilter::Validation);
