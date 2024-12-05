@@ -43,7 +43,7 @@ impl EngineState {
         camera.look_at(Vec3::ZERO);
 
         let mut object_list = ObjectList::new();
-        object_list.bvh_test_scene();
+        object_list.random_scene();
 
         let bounding_volume_hierarchy = BoundingVolumeHierarchy::from_objects(&mut object_list);
 
@@ -58,7 +58,7 @@ impl EngineState {
 
     pub fn update(&mut self) {
         if self.input.keys.just_pressed(RANDOM_SCENE_KEY) {
-            self.object_list.bvh_test_scene();
+            self.object_list.random_scene();
         }
 
         if self.bounding_volume_hierarchy.version != self.object_list.version() {

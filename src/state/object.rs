@@ -283,12 +283,12 @@ impl ObjectList {
         self.aabbs.clear();
         self.triangles.clear();
 
-        let triangles = util::gltf::load_triangles_from_glb(
-            "assets/meshes/dragon.glb",
+        let triangles = util::gltf::load_triangles_from_gltf(
+            "assets/meshes/suzanne",
             Vec3::new(0.0, -1.5, -0.25),
-            Quat::from_rotation_y(-f32::consts::PI) * Quat::from_rotation_x(f32::consts::PI / 2.0),
-            0.5,
-            Material::dielectric(Vec3::ONE, 0.0, 2.4),
+            Quat::IDENTITY,
+            1.0,
+            Material::metal(Vec3::new(1.0, 0.5, 0.25), 0.05),
         )
         .unwrap();
 

@@ -79,10 +79,10 @@ fn albedo(hit: Hit) -> vec3<f32> {
 
 fn sky(ray: Ray) -> vec3<f32> {
     var color = textureSampleLevel(sky_cubemap_texture, sky_cubemap_sampler, ray.dir, 0.0).rgb;
-    //color = pow(color, vec3(2.2));
+    color = pow(color, vec3(2.2));
     let color_length = length(color);
 
-    color = normalize(color) * min(10000.0, color_length);
+    color = normalize(color) * min(1000.0, color_length);
 
     return color;
 }
