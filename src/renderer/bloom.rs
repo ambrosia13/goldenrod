@@ -8,7 +8,7 @@ use crate::engine::{
         binding::{Binding, BindingData, BindingEntry},
         pass::RenderPass,
         pipeline::{PipelineLayoutConfig, PushConstantConfig, RenderPipelineConfig},
-        shader::Shader,
+        shader::{Shader, ShaderSource},
         texture::{Texture, TextureConfig, TextureType},
         RenderStateExt,
     },
@@ -85,8 +85,11 @@ impl<'a> BloomRenderContext<'a> {
                 mip_levels,
             );
 
-        let downsample_shader =
-            gpu_state.create_shader("assets/shaders/bloom/bloom_downsample.wgsl");
+        let downsample_shader = Shader::new(
+            &render_state,
+            ShaderSource::load_wgsl("assets/shaders/bloom/bloom_downsample.wgsl"),
+        );
+
         let (downsample_pipeline_layout, downsample_pipeline) = Self::create_pipelines(
             &gpu_state,
             "Bloom Downsample Render Pipeline",
@@ -96,8 +99,11 @@ impl<'a> BloomRenderContext<'a> {
             &downsample_shader,
         );
 
-        let first_upsample_shader =
-            gpu_state.create_shader("assets/shaders/bloom/bloom_upsample_first.wgsl");
+        let first_upsample_shader = Shader::new(
+            &render_state,
+            ShaderSource::load_wgsl("assets/shaders/bloom/bloom_upsample_first.wgsl"),
+        );
+
         let (first_upsample_pipeline_layout, first_upsample_pipeline) = Self::create_pipelines(
             &gpu_state,
             "First Bloom Upsample Render Pipeline",
@@ -107,7 +113,11 @@ impl<'a> BloomRenderContext<'a> {
             &first_upsample_shader,
         );
 
-        let upsample_shader = gpu_state.create_shader("assets/shaders/bloom/bloom_upsample.wgsl");
+        let upsample_shader = Shader::new(
+            &render_state,
+            ShaderSource::load_wgsl("assets/shaders/bloom/bloom_upsample.wgsl"),
+        );
+
         let (upsample_pipeline_layout, upsample_pipeline) = Self::create_pipelines(
             &gpu_state,
             "Bloom Upsample Render Pipeline",
@@ -117,7 +127,11 @@ impl<'a> BloomRenderContext<'a> {
             &upsample_shader,
         );
 
-        let merge_shader = gpu_state.create_shader("assets/shaders/bloom/bloom_merge.wgsl");
+        let merge_shader = Shader::new(
+            &render_state,
+            ShaderSource::load_wgsl("assets/shaders/bloom/bloom_merge.wgsl"),
+        );
+
         let (merge_pipeline_layout, merge_pipeline) = Self::create_pipelines(
             &gpu_state,
             "Bloom Merge Render Pipeline",

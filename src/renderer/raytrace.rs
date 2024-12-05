@@ -7,7 +7,7 @@ use crate::engine::{
         binding::{Binding, BindingData, BindingEntry},
         pass::ComputePass,
         pipeline::{ComputePipelineConfig, PipelineLayoutConfig, PushConstantConfig},
-        shader::Shader,
+        shader::{Shader, ShaderSource},
         texture::{self, Texture, TextureConfig, TextureType},
         RenderStateExt,
     },
@@ -148,7 +148,10 @@ impl<'a> RaytraceRenderContext<'a> {
         let texture_binding =
             Self::create_texture_binding(&gpu_state, &color_texture, &color_texture_copy);
 
-        let shader = render_state.create_shader("assets/shaders/raytrace.wgsl");
+        let shader = Shader::new(
+            &render_state,
+            ShaderSource::load_wgsl("assets/shaders/raytrace.wgsl"),
+        );
 
         let pipeline_layout = render_state.create_pipeline_layout(PipelineLayoutConfig {
             bind_group_layouts: &[

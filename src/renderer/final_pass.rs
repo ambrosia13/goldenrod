@@ -4,7 +4,7 @@ use crate::engine::{
         binding::{Binding, BindingData, BindingEntry},
         pass::RenderPass,
         pipeline::{PipelineLayoutConfig, PushConstantConfig, RenderPipelineConfig},
-        shader::Shader,
+        shader::{Shader, ShaderSource},
         texture::Texture,
         RenderStateExt,
     },
@@ -67,7 +67,10 @@ impl FinalRenderContext {
             }],
         );
 
-        let shader = render_state.create_shader("assets/shaders/final.wgsl");
+        let shader = Shader::new(
+            &render_state,
+            ShaderSource::load_wgsl("assets/shaders/final.wgsl"),
+        );
 
         let pipeline_layout = render_state.create_pipeline_layout(PipelineLayoutConfig {
             bind_group_layouts: &[

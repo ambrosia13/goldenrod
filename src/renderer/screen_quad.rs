@@ -9,7 +9,7 @@ use crate::engine::{
     render_state_ext::{
         binding::{Binding, BindingData, BindingEntry},
         buffer::{Buffer, BufferConfig, BufferData, BufferType},
-        shader::Shader,
+        shader::{Shader, ShaderSource},
         RenderStateExt,
     },
 };
@@ -113,7 +113,10 @@ impl ScreenQuad {
             ],
         );
 
-        let vertex_shader = render_state.create_shader("assets/shaders/frame_vertex.wgsl");
+        let vertex_shader = Shader::new(
+            &render_state,
+            ShaderSource::load_wgsl("assets/shaders/frame_vertex.wgsl"),
+        );
 
         let vertex_storage_buffer = Arc::new(vertex_storage_buffer);
         let index_storage_buffer = Arc::new(index_storage_buffer);

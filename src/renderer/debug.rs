@@ -10,6 +10,7 @@ use crate::engine::{
         binding::{Binding, BindingData, BindingEntry},
         pass::ComputePass,
         pipeline::{ComputePipelineConfig, PipelineLayoutConfig, PushConstantConfig},
+        shader::{Shader, ShaderSource},
         texture::{Texture, TextureConfig, TextureType},
         RenderStateExt,
     },
@@ -49,7 +50,10 @@ impl<'a> DebugRenderContext<'a> {
             .as_slice()
             .len();
 
-        let shader = gpu_state.create_shader("assets/shaders/debug.wgsl");
+        let shader = Shader::new(
+            &render_state,
+            ShaderSource::load_wgsl("assets/shaders/debug.wgsl"),
+        );
 
         let pipeline_layout = gpu_state.create_pipeline_layout(PipelineLayoutConfig {
             bind_group_layouts: &[binding.bind_group_layout()],

@@ -23,8 +23,6 @@ pub trait RenderStateExt {
 
     fn queue(&self) -> &wgpu::Queue;
 
-    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader;
-
     fn create_pipeline_layout(&self, config: PipelineLayoutConfig) -> wgpu::PipelineLayout;
 
     fn create_compute_pipeline(
@@ -51,26 +49,6 @@ impl RenderStateExt for GpuState {
 
     fn queue(&self) -> &wgpu::Queue {
         &self.queue
-    }
-
-    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader {
-        let mut source = ShaderSource::load(&relative_path, ShaderBackend::Wgsl);
-
-        // so we can catch shader compilation errors instead of panicking
-        self.device.push_error_scope(wgpu::ErrorFilter::Validation);
-        let mut module = self.device.create_shader_module(source.desc());
-        let err = pollster::block_on(self.device.pop_error_scope());
-
-        if err.is_some() {
-            source = ShaderSource::fallback(&relative_path);
-            module = self.device.create_shader_module(source.desc());
-        }
-
-        Shader {
-            source,
-            module,
-            gpu_state: self.clone(),
-        }
     }
 
     fn create_pipeline_layout(&self, config: PipelineLayoutConfig) -> wgpu::PipelineLayout {
@@ -151,10 +129,6 @@ impl RenderStateExt for &RenderState {
 
     fn queue(&self) -> &wgpu::Queue {
         &self.queue
-    }
-
-    fn create_shader<P: AsRef<Path> + Debug>(&self, relative_path: P) -> Shader {
-        self.get_gpu_state().create_shader(relative_path)
     }
 
     fn create_pipeline_layout(&self, config: PipelineLayoutConfig) -> wgpu::PipelineLayout {
