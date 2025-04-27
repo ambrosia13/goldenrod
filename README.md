@@ -8,9 +8,9 @@
 
 `goldenrod` is a rendering engine and path tracer written in Rust. It uses the `wgpu` library, which is a native Rust implementation of the WebGPU specification.
 
-The current path tracing system can represent a few different kinds of materials, and uses spectral rendering to accurately simulate all wavelengths of light, not just R, G, and B wavelengths.
+The current path tracing system can represent a few different kinds of materials, and uses spectral rendering to accurately simulate all wavelengths of light, not just red, green, and blue wavelengths. This makes it possible to display much more accurate colors, as well as simulate certain wavelength-dependent light physics, such as dispersion.
 
-Other than path tracing, `goldenrod` implements cubemap loading and bloom.
+Other than path tracing, `goldenrod` implements cubemap loading, bloom, and the construction of an acceleration structure for triangles. It also uses real camera response functions to display colors exactly as real-life cameras would display them in photographs.
 
 Four types of geometry are implemented:
 - spheres
